@@ -31,3 +31,19 @@
 .dashboard-quick>button:not(.primary){color:var(--muted)}
 @container (max-width:949px){.dashboard-person-hero .dashboard-hero-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container (max-width:499px){.dashboard-person-hero .dashboard-hero-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-avatar{width:62px}.dashboard-person-hero .td-hero-head{flex-wrap:wrap;gap:14px}.dashboard-person-hero .td-person{gap:10px}.dashboard-clock{text-align:start}}
+
+.dashboard-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:15px;container-type:inline-size}
+.dashboard-kpi.panel{display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:145px;padding:16px 17px;text-align:start;border:1px solid var(--line);border-radius:19px;background:var(--surface);color:inherit;box-shadow:0 4px 9px #1726460b,0 1px 3px #17264609}
+.dashboard-kpi-grid .dashboard-kpi:hover{border-color:var(--brand);box-shadow:0 7px 16px #17264613}
+.dashboard-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px}
+.dashboard-kpi-head .td-icon{width:51px;height:51px;border-radius:12px}
+.dashboard-kpi-head svg{width:23px;height:23px}
+.dashboard-kpi strong{font-size:clamp(1.38rem,2.1vw,1.96rem);letter-spacing:-.035em;line-height:1.12}
+.dashboard-kpi strong small{display:inline;margin-inline-start:2px;font-size:.48em;letter-spacing:normal;font-weight:650}
+.dashboard-kpi-label{color:var(--muted);font-size:.84rem;margin-top:4px}
+.metric-badge{display:inline-flex;align-items:center;justify-content:center;gap:3px;align-self:center;white-space:nowrap;border-radius:999px;padding:5px 8px;font-size:.75rem;font-weight:690;line-height:1.2}
+.metric-badge svg,.dashboard-kpi-head .metric-badge svg{width:12px;height:12px;flex:none}
+.metric-good{color:#087a33;background:#e1f3e8}.metric-bad{color:#bb233a;background:#fce7ea}.metric-neutral{color:#546279;background:#f0f3f8}
+.dark .metric-good{color:#a5efb7;background:#1e3a2e}.dark .metric-bad{color:#ffb7c3;background:#482734}.dark .metric-neutral{color:#d7deee;background:#313951}
+@media(max-width:1200px){.dashboard-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:580px){.dashboard-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboard-kpi.panel{min-height:123px;padding:12px}.dashboard-kpi-head .td-icon{width:39px;height:39px}}

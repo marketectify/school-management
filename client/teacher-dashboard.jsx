@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import './teacher-dashboard.css';
+import { DashboardMetrics, delta } from './dashboard-metrics.jsx';
 import { DashboardIcon, HeroAvatar, HeroClock, HeroMetric, HeroTag } from './dashboard-hero.jsx';
 
 const modules = ['teachers','classes','subjects','students','timetable','attendance','homework','submissions','exams','results','leaves','sessions','calendar','announcements','achievements'];
@@ -165,6 +166,15 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
   });
   const trend=visibleWeek.map((value,i)=>value===null?null:[10+i*56,43-value*.34]).filter(Boolean);
 
+  const offset=days=>new Date(now.getFullYear(),now.getMonth(),now.getDate()+days);
+  const yesterdaySchedule=timetable.filter(row=>row.day===weekdays[offset(-1).getDay()]);
+  const durationOf=rows=>rows.reduce((total,row)=>total+Math.max(0,minutes(row.end)-minutes(row.start)),0);
+  const previousAttendance=attendance.filter(row=>row.date===dateKey(offset(-1)));
+  const attendanceChange=status=>delta(todaysAttendance.length?todaysAttendance.filter(row=>row.status===status).length:null,
+    previousAttendance.length?previousAttendance.filter(row=>row.status===status).length:null,'Recorded '+status.toLowerCase()+' count vs yesterday',{lower:status==='Absent'});
+  const recordDay=row=>row.date??row.createdAt?.slice(0,10);
+  const recent=rows=>rows.filter(row=>recordDay(row)>dateKey(offset(-7))&&recordDay(row)<=today);
+  const prior=rows=>rows.filter(row=>recordDay(row)>dateKey(offset(-14))&&recordDay(row)<=dateKey(offset(-7)));
   if(!records)return <div className="td-root" aria-live="polite">{error?<><p className="error">{error}</p><button onClick={reload}>Retry</button></>:<Empty>Loading teacher dashboard…</Empty>}</div>;
 
   return <div className="td-root">
@@ -199,12 +209,17 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
         {more&&<div className="td-more">{[['Submissions','submissions'],['Leave Requests','leaves'],['Achievements','achievements'],['Study Materials','files'],['Class Sessions','sessions']].map(([label,key])=><button key={key} onClick={goTo(key)}>{label}</button>)}</div>}
       </div>
     </section>
-    <Metrics items={[
-      ["Today's Classes",schedule.length,'class','blue',goTo('timetable')],['Students Present',todaysAttendance.filter(row=>row.status==='Present').length,'students','green',goTo('attendance')],
-      ['Students Absent',todaysAttendance.filter(row=>row.status==='Absent').length,'students','red',goTo('attendance')],['Assignments Pending',pending.length,'assignment','gold',goTo('submissions')],
-      ['Homework Submitted',submissions.length,'attendance','sky',goTo('submissions')],['Upcoming Exams',futureExams.length,'class','purple',goTo('exams')],
-      ['Parent Messages',messages.filter(row=>!row.read).length,'messages','pink',goTo('messages')],['Leave Requests',leaves.length,'calendar','gold',goTo('leaves')],
-      ['Avg Class Attendance',percent(averageAttendance),'activity','cyan',goTo('attendance')],['Teaching Hours',span(scheduledMinutes),'time','sky',goTo('timetable')],
+    <DashboardMetrics items={[
+      {name:"Today's Classes",value:schedule.length,icon:'book',tone:'blue',change:delta(schedule.length,yesterdaySchedule.length,'Scheduled classes vs yesterday'),run:goTo('timetable')},
+      {name:'Students Present',value:todaysAttendance.filter(row=>row.status==='Present').length,icon:'users',tone:'green',change:attendanceChange('Present'),run:goTo('attendance')},
+      {name:'Students Absent',value:todaysAttendance.filter(row=>row.status==='Absent').length,icon:'users',tone:'red',change:attendanceChange('Absent'),run:goTo('attendance')},
+      {name:'Assignments Pending',value:pending.length,icon:'file',tone:'gold',change:delta(recent(pending).length,prior(pending).length,'Pending reviews received in last 7 days vs previous 7 days',{lower:true}),run:goTo('submissions')},
+      {name:'Homework Submitted',value:submissions.length,icon:'clipboard',tone:'sky',change:delta(recent(submissions).length,prior(submissions).length,'Submissions received in last 7 days vs previous 7 days'),run:goTo('submissions')},
+      {name:'Upcoming Exams',value:futureExams.length,icon:'cap',tone:'purple',change:delta(futureExams.filter(row=>row.date<dateKey(offset(7))).length,exams.filter(row=>row.date>=dateKey(offset(-7))&&row.date<today).length,'Exams in next 7 days vs previous 7 days'),run:goTo('exams')},
+      {name:'Parent Messages',value:messages.filter(row=>!row.read).length,icon:'chat',tone:'pink',change:delta(recent(messages).length,prior(messages).length,'Parent messages received in last 7 days vs previous 7 days'),run:goTo('messages')},
+      {name:'Leave Requests',value:leaves.length,icon:'calendar',tone:'gold',change:delta(recent(leaves).length,prior(leaves).length,'Pending leave requests by leave date in last 7 days vs previous 7 days'),run:goTo('leaves')},
+      {name:'Avg Class Attendance',value:averageAttendance??'—',suffix:averageAttendance==null?null:'%',icon:'arrow',tone:'cyan',change:delta(pct(recent(attendance).filter(present).length,recent(attendance).length),pct(prior(attendance).filter(present).length,prior(attendance).length),'Last 7 days vs previous 7 days',{unit:' pp'}),run:goTo('attendance')},
+      {name:'Teaching Hours',value:span(scheduledMinutes),icon:'time',tone:'sky',change:delta(scheduledMinutes,durationOf(yesterdaySchedule),'Scheduled teaching minutes vs yesterday',{unit:'m'}),run:goTo('timetable')},
     ]}/>
     <div className="td-grid td-wide">
       <Panel title="Today's Timetable" icon="calendar" action={<button onClick={goTo('timetable')}>View Full Schedule</button>}>
