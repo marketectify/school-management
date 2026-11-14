@@ -7,6 +7,7 @@ import Dashboard from './dashboard.jsx';
 import TopBar from './topbar.jsx';
 import { SidebarMenu, ModuleInfo } from './sidebar.jsx';
 import { ActivityPage, Inbox, RoleDashboard } from './portal.jsx';
+import StudentDashboard from './student-dashboard.jsx';
 import TeacherDashboard from './teacher-dashboard.jsx';
 import './topbar.css';
 import { Avatar, Profile, Calendar } from './application.jsx';
@@ -154,7 +155,7 @@ function Records({ module, user, initialAdd, year, target }) {
     catch (err) { setActionError(err.message); }
     finally { setDeleting(''); }
   }
-  const controls = row => writable && <div className="actions"><button onClick={() => setEditing(row)}>Edit</button>
+  const controls = row => writable && <div className="actions">{module === 'submissions' && row.notes === 'Student PDF submission' && <a href={'/api/workspace/assignment-file/' + row._id}>Download PDF</a>}<button onClick={() => setEditing(row)}>Edit</button>
     <button className="danger" disabled={deleting === row._id} onClick={() => remove(row)}>Delete</button></div>;
   const selected = (data ?? []).find(row => row._id === profile);
   const classField = definition.fields.find(field => field.key === 'classId');
@@ -350,6 +351,7 @@ function Workspace({ user, onLogout }) {
           {dashboard.data && (user.role === 'admin' && view.key === 'dashboard'
             ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} years={years} schoolName={campus?.name ?? "Global International"} onYear={value => { setYear(value); localStorage.setItem("school-year", value); }} refresh={dashboard.reload} />
             : user.role === 'teacher' || view.key === 'preview-teacher' ? <TeacherDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
+            : user.role === 'student' || view.key === 'preview-student' ? <StudentDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
         </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : view.key === 'messages' ? <Inbox key={view.revision} user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
         : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
