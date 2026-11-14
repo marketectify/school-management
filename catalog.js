@@ -7,6 +7,11 @@ const number = (key, label) => field(key, label, 'number');
 const notes = field('notes', 'Notes', 'textarea');
 
 export const catalog = {
+  guardians: { label: 'Guardians', group: 'People', fields: [
+    field('name', 'Full name'), ref('studentId', 'Student', 'students'), field('relationship', 'Relationship'), field('phone', 'Phone'),
+  ] },
+  departments: { label: 'Departments', group: 'People', fields: [field('name', 'Department'), notes] },
+  designations: { label: 'Designation', group: 'People', fields: [field('name', 'Designation'), field('department', 'Department'), notes] },
   loans: { label: 'Book loans', group: 'Campus', fields: [
     ref('bookId', 'Book', 'library'), ref('studentId', 'Student', 'students'), date('date', 'Issued date'),
     date('due', 'Due date'), select('status', 'Status', 'Issued', 'Returned', 'Reserved'),
