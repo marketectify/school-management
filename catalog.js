@@ -7,6 +7,21 @@ const number = (key, label) => field(key, label, 'number');
 const notes = field('notes', 'Notes', 'textarea');
 
 export const catalog = {
+  submissions: { label: 'Assignment Submissions', group: 'Academics', teacherWrite: true, unique: ['homeworkId', 'studentId'], fields: [
+    ref('homeworkId', 'Assignment', 'homework'), ref('studentId', 'Student', 'students'), date('date', 'Submitted on'),
+    select('status', 'Status', 'Submitted', 'Graded'), notes,
+  ] },
+  leaves: { label: 'Leave Requests', group: 'Academics', teacherWrite: true, fields: [
+    ref('studentId', 'Student', 'students'), date('date', 'Leave date'),
+    select('status', 'Status', 'Pending', 'Approved', 'Denied'), field('reason', 'Reason'),
+  ] },
+  sessions: { label: 'Class Sessions', group: 'Academics', teacherWrite: true, unique: ['periodId', 'date'], fields: [
+    ref('periodId', 'Period', 'timetable'), date('date', 'Date'), select('status', 'Status', 'Live', 'Done'), notes,
+  ] },
+  achievements: { label: 'Achievements', group: 'Application', personal: true, fields: [
+    field('name', 'Achievement'), select('category', 'Category', 'Top Rated', 'Best Attendance', 'Recognition', 'Courses', 'Certificates', 'Performance'),
+    date('date', 'Date'), notes,
+  ] },
   guardians: { label: 'Guardians', group: 'People', fields: [
     field('name', 'Full name'), ref('studentId', 'Student', 'students'), field('relationship', 'Relationship'), field('phone', 'Phone'),
   ] },
@@ -107,7 +122,7 @@ export const catalog = {
   hostel: { label: 'Hostel rooms', group: 'Campus', fields: [
     field('name', 'Room'), field('building', 'Building'), number('beds', 'Beds'), field('warden', 'Warden'),
   ] },
-  announcements: { label: 'Announcements', group: 'Communication', fields: [
+  announcements: { label: 'Announcements', group: 'Communication', teacherWrite: true, fields: [
     field('name', 'Title'), date('date', 'Publish date'), field('body', 'Announcement', 'textarea'),
   ] },
 };
