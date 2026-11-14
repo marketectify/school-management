@@ -2,7 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { api } from './api.js';
 import './admin-dashboard.css';
 import './admin-masthead.css';
-import { MetricBadge, delta } from './dashboard-metrics.jsx';
+import { delta } from './dashboard-metrics.jsx';
 import { DashboardIcon } from './dashboard-hero.jsx';
 import Spotlights from './spotlight.jsx';
 
@@ -142,10 +142,10 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
   const previousFees=sum((data?.payments??[]).filter(row=>row.date===previousDay&&fees.has(row.feeId)),'amount');
   const amountChange=previousFees ? delta(feesToday/previousFees*100,100,'Fees received compared with yesterday',{unit:'%'}) : null;
   const metrics=[
-    ["Today's Attendance",todayAttendance.length?ratio(todayAttendance.filter(valid).length,todayAttendance.length)+'%':'—','attendance','check',delta(attendanceDelta,0,'Attendance compared with yesterday',{unit:' pp'})],
+    ["Today's Attendance",todayAttendance.length?ratio(todayAttendance.filter(valid).length,todayAttendance.length)+'%':'—','attendance','check',delta(attendanceDelta,0,'Attendance compared with yesterday',{unit:'%'})],
     ['New Admissions',number(newAdmissions),'admissions','users',delta(newAdmissions,priorAdmissions,'Admissions today compared with yesterday')],
-    ['Fees Today',Intl.NumberFormat(undefined,{notation:feesToday>=10000?'compact':'standard',maximumFractionDigits:1}).format(feesToday),'payments','money',amountChange],
-    ['Upcoming Exams',String(upcomingExams.length).padStart(2,'0'),'exams','file',daysToExam===null?null:{direction:'time',tone:daysToExam<=2?'bad':'neutral',text:daysToExam===0?'Today':daysToExam+'d',title:'Time until the next exam'}],
+    ['Fees Today',Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:feesToday>=10000?'compact':'standard',maximumFractionDigits:feesToday>=10000?1:2,minimumFractionDigits:0}).format(feesToday),'payments','money',amountChange],
+    ['Upcoming Exams',String(upcomingExams.length).padStart(2,'0'),'exams','certificate',daysToExam===null?null:{direction:'time',tone:'bad',text:daysToExam===0?'Today':daysToExam+'d',title:'Time until the next exam'}],
   ];
   const exportCSV=()=>{
     const blob=new Blob(['Metric,Value\r\n'+metrics.map(([label,value])=>label+',"'+value+'"').join('\r\n')],{type:'text/csv'});
@@ -164,10 +164,17 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
     {!data ? <p role="status">{error?'Dashboard data unavailable.':'Loading dashboard…'}</p> : <>
     <section className="panel erp-overview admin-overview"><div><div className="erp-greeting"><i><DashboardIcon name="cap"/></i><div><h2>Good {today.getHours()<12?'Morning':today.getHours()<18?'Afternoon':'Evening'}, Administrator</h2><small><b>{schoolName}</b> · {today.toLocaleDateString(undefined,{dateStyle:'medium'})}{year&&' · '+year}</small></div></div>
       <div className="actions"><button className="primary" onClick={()=>go('admissions',true)}><DashboardIcon name="plus"/> New Admission</button><button onClick={()=>go('payments',true)}><DashboardIcon name="clipboard"/> Collect Fees</button><button onClick={exportCSV}><DashboardIcon name="file"/> Report</button></div></div>
-      <div className="erp-metrics">{metrics.map(([label,value,key,icon,change],i)=><button key={key} onClick={()=>go(key,false,['attendance','payments','admissions'].includes(key)?{date:todayKey}:undefined)}>
-        <span className="admin-kpi-head"><i style={{color:['#18b833','#4059dc','#ad7700','#5708ec'][i]}}><DashboardIcon name={icon}/></i>
-        <MetricBadge change={change}/></span>
-        <strong>{value}</strong><small>{label}</small></button>)}</div></section>
+      <div className="erp-metrics">{metrics.map(([label,value,key,icon,change])=><button className={'admin-kpi admin-kpi-'+key} type="button" key={key}
+        onClick={()=>go(key,false,['attendance','payments','admissions'].includes(key)?{date:todayKey}:undefined)}>
+        <span className="admin-kpi-head"><span className="admin-kpi-icon"><DashboardIcon name={icon}/></span>
+          {change && change.direction!=='minus'&&<span className={'admin-kpi-trend '+change.tone}
+            title={change.title} aria-label={change.title+': '+(change.direction==='up'?'+':change.direction==='down'?'−':'')+change.text}>
+            <DashboardIcon name={change.direction==='time'?'time':change.direction==='down'?'trendDown':'arrow'}/>{change.text}
+          </span>}
+        </span>
+        <strong>{value}</strong><small>{label}</small>
+      </button>)}</div>
+    </section>
     <div className="erp-grid">
       <Spotlights teachers={data.teachers ?? []} students={students} scores={scores} groups={groups} go={go} />
       <Card section="Capacity" title="Class-Wise Distribution" footer={action('classes','View classes')}><strong className="big-number">{number(students.length)}</strong><p className="muted">Total students enrolled</p>
