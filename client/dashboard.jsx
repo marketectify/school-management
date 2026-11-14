@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { api } from './api.js';
 import './admin-dashboard.css';
+import Spotlights from './spotlight.jsx';
 
 const palette = ['#4059dc', '#126bce', '#24ba49', '#efb500', '#7714d9'];
 const number = value => Number(value || 0).toLocaleString();
@@ -144,7 +145,7 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
       <div className="actions"><button className="primary" onClick={()=>go('admissions',true)}>⊕ New Admission</button><button onClick={()=>go('payments',true)}>Collect Fees</button><button onClick={exportCSV}>Report</button></div></div>
       <div className="erp-metrics">{metrics.map(([label,value,key,icon],i)=><button key={key} onClick={()=>go(key)}><i style={{color:palette[i]}}>{icon}</i><strong>{value}</strong><small>{label}</small></button>)}</div></section>
     <div className="erp-grid">
-      <div className="erp-spotlights">{[['Faculty spotlight',data.teachers?.[0]?.name,data.teachers?.[0]?.department,'teachers','green'],['Top Student',scores[0]?.name,scores[0]&&scores[0].score+'% average exam score','students','blue']].map(([label,name,detail,key,color])=><article className={'erp-spotlight '+color} key={key}><small>{label}</small><h2>{name||'—'}</h2><p>{detail}</p><button onClick={()=>go(key,false,key==='students'&&scores[0]?{id:scores[0].id,name:scores[0].name}:undefined)}>View {key}</button></article>)}</div>
+      <Spotlights teachers={data.teachers ?? []} students={students} scores={scores} groups={groups} go={go} />
       <Card section="Capacity" title="Class-Wise Distribution" footer={action('classes','View classes')}><strong className="big-number">{number(students.length)}</strong><p className="muted">Total students enrolled</p>
         {groups.map((row,i)=><Bar key={row._id} label={row.name+' · '+row.section} value={ratio(row.students.length,students.length)} meta={number(row.students.length)+' · '+ratio(row.students.length,students.length)+'%'} color={palette[i%5]}/>)}
         <Stats items={[[ 'Sections',classes.length],['Avg. class size',classes.length?Math.round(students.length/classes.length):0]]}/></Card>
