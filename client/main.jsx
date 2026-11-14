@@ -5,7 +5,7 @@ import './style.css';
 import './upgrade.css';
 import Dashboard from './dashboard.jsx';
 import TopBar from './topbar.jsx';
-import { Inbox, RoleDashboard } from './portal.jsx';
+import { ActivityPage, Inbox, RoleDashboard } from './portal.jsx';
 import './topbar.css';
 import { Avatar, Profile, Calendar } from './application.jsx';
 import { api } from './api.js';
@@ -90,7 +90,7 @@ function Editor({ definition, values, references, close, save }) {
     <h2 id="editor-title">{values?._id ? 'Edit record' : 'Add record'}</h2>
     <form onSubmit={submit}>
       {definition.fields.map(({ key, label, type, options }) => {
-        const props = { name: key, defaultValue: values?.[key] ?? '', required: !['notes', 'reference'].includes(key) };
+        const props = { name: key, defaultValue: values?.[key] ?? ({ gender: 'Unspecified', category: 'Other' }[key] ?? ''), required: !['notes', 'reference'].includes(key) };
         return <label key={key}>{label}{type === 'select' || type === 'ref' ? <select {...props}>
           <option value="">Select {label.toLowerCase()}</option>
           {type === 'select' ? options.map(value => <option key={value}>{value}</option>)
@@ -109,6 +109,7 @@ function Editor({ definition, values, references, close, save }) {
 function Records({ module, user, initialAdd, year, target }) {
   const definition = catalog[module];
   const { data, error, loading, reload } = useData('records/' + module);
+  const [drilldown,setDrilldown] = useState(target);
   const [query, setQuery] = useState(target?.name ?? '');
   const [status, setStatus] = useState('');
   const [sort, setSort] = useState('recent');
@@ -135,7 +136,7 @@ function Records({ module, user, initialAdd, year, target }) {
     const ref = references[field.options[0]]?.find(item => item._id === row[field.key]);
     return ref ? recordLabel(ref) : row[field.key];
   };
-  const rows = (data ?? []).filter(row => (module !== "students" || !year || row.year === year) && (!status || row.status === status) && (!classFilter || row.classId === classFilter) &&
+  const rows = (data ?? []).filter(row => (!drilldown?.date || row.date === drilldown.date) && (!drilldown?.classId || references.students?.some(student => student._id === row.studentId && student.classId === drilldown.classId)) && (module !== "students" || !year || row.year === year) && (!status || row.status === status) && (!classFilter || row.classId === classFilter) &&
     definition.fields.some(field => String(display(row, field)).toLowerCase().includes(query.trim().toLowerCase())));
   if (sort === 'name') rows.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
   async function save(fields) {
@@ -168,7 +169,7 @@ function Records({ module, user, initialAdd, year, target }) {
       {[['Total students', data?.length ?? 0], ...['Active', 'Inactive', 'Graduated'].map(label => [label, (data ?? []).filter(row => row.status === label).length])]
         .map(([label, value]) => <article className="panel" key={label}><span className="muted">{label}</span><strong>{value}</strong></article>)}
     </div>}
-    <div className="toolbar">
+    <div className="toolbar">{drilldown?.date && <button onClick={() => setDrilldown(null)}>Clear attendance drill-down</button>}
       <input aria-label="Search records" placeholder={module === 'students' ? 'Search name, admission no, class…' : 'Search records'} value={query} onChange={event => setQuery(event.target.value)} />
       {statuses && <select aria-label="Status" value={status} onChange={event => setStatus(event.target.value)}>
         <option value="">All statuses</option>{statuses.map(value => <option key={value}>{value}</option>)}
@@ -335,17 +336,17 @@ function Workspace({ user, onLogout }) {
         years={years} layout={layout} setLayout={setDisplay} nav={nav} setNav={setNav} logout={logout} school={school} refresh={refresh} />
       <main className="content">{error && <p className="error" role="alert">{error}</p>}
         {view.key === 'dashboard' || view.key.startsWith('preview-') ? <>
-          <p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
+          <div hidden={user.role === "admin" && view.key === "dashboard"}><p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
           <div className="title dashboard-heading"><h1 className="capitalize">{view.key.startsWith('preview-') ? view.key.slice(8) : user.role} Dashboard</h1>
-            <div className="actions"><button onClick={dashboard.reload}>Refresh</button><button onClick={() => window.print()}>Print / PDF</button>
+            <div className="actions" hidden={user.role === "admin" && view.key === "dashboard"}><button onClick={dashboard.reload}>Refresh</button><button onClick={() => window.print()}>Print / PDF</button>
             {user.role === 'admin' && <button className="primary" onClick={() => go('students',true)}>＋ Add Student</button>}</div></div>
-          {dashboard.loading && <p role="status">Loading dashboard…</p>}
+          </div>{dashboard.loading && <p role="status">Loading dashboard…</p>}
           {dashboard.error && <p className="error" role="alert">{dashboard.error}</p>}
           {dashboard.data && (user.role === 'admin' && view.key === 'dashboard'
-            ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} />
+            ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} years={years} schoolName={campus?.name ?? "Global International"} onYear={value => { setYear(value); localStorage.setItem("school-year", value); }} refresh={dashboard.reload} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
-        </> : view.key === 'accounts' ? <Accounts /> : view.key === 'messages' ? <Inbox user={user} onRead={() => setRefresh(value => value + 1)} />
-        : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
+        </> : view.key === 'accounts' ? <Accounts /> : view.key === 'messages' ? <Inbox user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
+        : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
         : view.key === 'contacts' ? <><h1>Call</h1><section className="panel"><h2>School contacts</h2><p>Open a staff or student record for available phone numbers.</p>
           {['teachers','staff','students'].filter(key => modules.includes(key)).map(key => <button key={key} onClick={() => go(key)}>{catalog[key].label}</button>)}</section></>
         : <Records key={view.revision} module={view.key} user={user} initialAdd={view.add} year={year} target={view.target} />}
