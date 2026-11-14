@@ -202,4 +202,14 @@ try {
 }
 await Promise.all([User.init(), Session.init(), ...Object.values(models).map(model => model.init())]);
 const port = process.env.PORT ?? 4000;
-app.listen(port, () => console.log('School management API listening on port ' + port));
+export const server = app.listen(port);
+try {
+  await new Promise((resolve, reject) => {
+    server.once('listening', resolve);
+    server.once('error', reject);
+  });
+  console.log('School management API listening on port ' + port);
+} catch (error) {
+  console.error('Could not start the API on port ' + port + ' (' + error.code + ').');
+  process.exit(1);
+}
