@@ -1,102 +1,180 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
+import './admin-dashboard.css';
 
-const colors = ['#4d5be4', '#2689ef', '#39b85e', '#ffb83d'];
-const percent = (n, d) => d ? Math.round(100 * n / d) : null;
-const rate = (n, d) => percent(n, d) === null ? '—' : percent(n, d) + '%';
+const palette = ['#4059dc', '#126bce', '#24ba49', '#efb500', '#7714d9'];
+const number = value => Number(value || 0).toLocaleString();
+const ratio = (a,b) => b ? Math.round(a / b * 1000) / 10 : 0;
+const sum = (rows,key) => rows.reduce((total,row) => total + (row[key] || 0),0);
+const valid = row => ['Present','Late'].includes(row.status);
+const day = date => date.toLocaleDateString('en-CA');
+const shift = (date,n) => new Date(date.getFullYear(),date.getMonth(),date.getDate()+n);
+const keys = ['classes','students','teachers','attendance','results','exams','payments','fees','admissions','library','loans','fleet','delivery','transport'];
 
-export default function Dashboard({ user, counts, go, year }) {
-  const [data, setData] = useState({});
-  useEffect(() => {
-    let active = true;
-    const keys = ['classes', 'students', 'teachers', 'attendance', 'results', 'exams', 'fees', 'payments'];
-    Promise.all(keys.filter(key => Object.hasOwn(counts, key)).map(async key => {
-      try { return [key, await api('records/' + key)]; } catch { return [key, []]; }
-    })).then(entries => { if (active) setData(Object.fromEntries(entries)); });
-    return () => { active = false; };
-  }, [counts]);
+function Card({ section, title, children, wide, footer }) {
+  return <article className={'erp-card panel' + (wide ? ' erp-wide' : '')}><div className="erp-card-title"><small>{section}</small><h2>{title}</h2></div>
+    <div className="erp-card-body">{children}</div>{footer && <div className="erp-footer">{footer}</div>}</article>;
+}
+function Stats({ items }) {
+  return <div className="erp-stats">{items.map(([label,value]) => <div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>;
+}
+function Bar({ label,value, meta,color = palette[0] }) {
+  return <div className="erp-bar"><div><span>{label}</span><strong>{meta ?? value + '%'}</strong></div><span className="erp-track"><i style={{width: Math.min(100,value)+'%',background:color}}/></span></div>;
+}
+function Ring({ value,label,color=palette[0] }) {
+  return <div className="erp-ring-wrap"><div className="ring" style={{background:'conic-gradient('+color+' '+Math.min(100,value)+'%,var(--line) 0)'}}><strong>{value}%</strong></div><small>{label}</small></div>;
+}
+function Plot({ labels, series, type = 'line', label }) {
+  const max = Math.max(1,...series.flatMap(s=>s.values));
+  const width=620,height=200,left=44,right=16,top=14,bottom=34;
+  const x=i=>left+(width-left-right)*(i+.5)/Math.max(labels.length,1);
+  const y=v=>height-bottom-(height-bottom-top)*v/max;
+  return <><div className="erp-legend">{series.map((s,i)=><span key={s.name}><i style={{background:palette[i]}}/>{s.name}</span>)}</div>
+    <svg viewBox="0 0 620 200" className="erp-plot" role="img" aria-label={label}>
+    {[0,.25,.5,.75,1].map(p=><g key={p}><line x1={left} x2={width-right} y1={y(p*max)} y2={y(p*max)}/><text x={left-5} y={y(p*max)+4} textAnchor="end">{number(Math.round(p*max))}</text></g>)}
+    {series.map((s,index)=>{ const points=s.values.map((v,i)=>[x(i),y(v)]); return <g key={s.name}>
+      {type==='bar' && index===0 ? s.values.map((v,i)=><rect key={i} x={x(i)-12} y={y(v)} width="24" height={y(0)-y(v)} rx="3" fill={palette[index]}><title>{labels[i]}: {number(v)} {s.name}</title></rect>) : <>
+        {type==='area' && points.length>0 && <polygon points={[[points[0][0],y(0)],...points,[points.at(-1)[0],y(0)]].map(p=>p.join(',')).join(' ')} fill={palette[index]} opacity=".12"/>}
+        <polyline points={points.map(p=>p.join(',')).join(' ')} fill="none" stroke={palette[index]} strokeWidth="2.5"/>
+        {points.map(([px,py],i)=><circle key={i} cx={px} cy={py} r="4" fill={palette[index]}><title>{labels[i]}: {number(s.values[i])} {s.name}</title></circle>)}</>}
+    </g>})}
+    {labels.map((label,i)=><text key={i} x={x(i)} y={height-11} textAnchor="middle">{label}</text>)}</svg></>;
+}
+function Scatter({ scores }) {
+  return <svg viewBox="0 0 360 176" className="erp-plot" role="img" aria-label="Exam score versus attendance">
+    {[0,25,50,75,100].map(p=><g key={p}><line x1="38" x2="345" y1={135-p*1.2} y2={135-p*1.2}/><text x="30" y={138-p*1.2} textAnchor="end">{p}</text>
+      <text x={38+p*3.07} y="152" textAnchor="middle">{p}</text></g>)}
+    {scores.filter(row=>row.records).map(row=><circle key={row.id} cx={38+row.attendance*3.07} cy={135-row.score*1.2} r="5.5" fill={row.score>=80?'#48b877':row.score>=60?'#e6a049':'#e65a68'}><title>{row.name}: {row.score}% score, {row.attendance}% attendance</title></circle>)}
+    <text x="190" y="170" textAnchor="middle">Attendance %</text><text transform="translate(11 93) rotate(-90)">Avg score</text>
+  </svg>;
+}
+function Polar({ values, months }) {
+  const max=Math.max(1,...values), center=100;
+  const point=(angle,r)=>[center+Math.cos(angle)*r,center+Math.sin(angle)*r].join(',');
+  return <div className="erp-polar"><svg viewBox="0 0 200 200" role="img" aria-label="Books issued each month">
+    {[22,44,66,88].map(r=><circle key={r} cx="100" cy="100" r={r} fill="none" stroke="var(--line)"/>)}
+    {values.map((value,i)=>{ const a=(i/12-.25)*Math.PI*2,b=a+Math.PI/6,r=88*value/max;
+      return <path key={i} d={'M100,100 L'+point(a,r)+' A'+r+','+r+' 0 0 1 '+point(b,r)+' Z'} fill={palette[0]} fillOpacity={.24+i*.055} stroke="var(--surface)"><title>{months[i]}: {value} loans</title></path>;
+    })}</svg><div className="erp-legend vertical">{months.map((m,i)=><span key={m}><i style={{background:palette[0],opacity:.24+i*.055}}/>{m}</span>)}</div></div>;
+}
 
-  const { classes = [], students: allStudents = [], teachers = [], attendance: allAttendance = [], results: allResults = [], exams = [], fees: allFees = [], payments: allPayments = [] } = data;
-  const students = allStudents.filter(row => !year || row.year === year);
-  const ids = new Set(students.map(row => row._id));
-  const attendance = allAttendance.filter(row => !year || ids.has(row.studentId));
-  const results = allResults.filter(row => !year || ids.has(row.studentId));
-  const fees = allFees.filter(row => !year || ids.has(row.studentId));
-  const feeIds = new Set(fees.map(row => row._id));
-  const payments = allPayments.filter(row => !year || feeIds.has(row.feeId));
-  const paid = payments.reduce((total, row) => total + row.amount, 0);
-  const due = fees.reduce((total, row) => total + row.amount, 0);
-  const present = attendance.filter(row => ['Present', 'Late'].includes(row.status)).length;
-  const days = [...new Set(attendance.map(row => row.date))].sort().slice(-6);
-  const scoreRows = results.map(row => ({ ...row, score: percent(row.marks, exams.find(exam => exam._id === row.examId)?.maximum) }))
-    .filter(row => row.score !== null).sort((a, b) => b.score - a.score);
-  const highest = scoreRows[0];
-  const student = students.find(row => row._id === highest?.studentId);
-  const buckets = ['On track', 'Needs review', 'Needs support'].map((label, index) => ({
-    label, count: scoreRows.filter(row => (row.score >= 80 ? 0 : row.score >= 60 ? 1 : 2) === index).length,
-  }));
-  const metrics = [
-    ['Attendance rate', rate(present, attendance.length), 'attendance', '✓'],
-    ['Students enrolled', (year ? students.length : counts.students ?? 0), 'students', '♙'],
-    ['Fees collected', paid.toLocaleString(), 'payments', '◈'],
-    ['Exams', counts.exams ?? 0, 'exams', '▤'],
-  ];
-  return <>
-    <section className="overview panel">
-      <div><h2>Welcome, {user.name}</h2><p className="muted">School overview</p>
-        <div className="actions">{user.role === 'admin' && <>
-          <button className="primary" onClick={() => go('admissions', true)}>New admission</button>
-          <button onClick={() => go('payments', true)}>Collect fees</button></>}
-          <button onClick={() => window.print()}>Print dashboard</button>
-        </div>
-      </div>
-      <div className="metrics">{metrics.filter(([, , key]) => Object.hasOwn(counts, key)).map(([label, value, key, icon]) =>
-        <button className="metric" key={key} onClick={() => go(key)}><span className="metric-icon">{icon}</span>
-          <strong>{value}</strong><small>{label}</small></button>)}</div>
-    </section>
-    <div className="dashboard-grid">
-      {Object.hasOwn(counts, 'students') && <div className="spotlights">
-        {Object.hasOwn(counts, 'teachers') && <article className="spotlight green"><span>Faculty spotlight</span>
-          <h2>{teachers[0]?.name ?? 'Faculty'}</h2><p>{teachers[0]?.department ?? 'Teaching staff'}</p>
-          <button onClick={() => go('teachers')}>View teachers</button></article>}
-        <article className="spotlight blue"><span>{student ? 'Top student' : 'Student directory'}</span>
-          <h2>{student?.name ?? 'Students'}</h2><p>{highest ? highest.score + '% highest recorded exam score' : counts.students + ' enrolled'}</p>
-          <button onClick={() => go('students')}>View students</button></article>
-      </div>}
-      {Object.hasOwn(counts, 'classes') && <article className="panel analytics"><h2>Class-wise distribution</h2>
-        <strong className="big-number">{students.length}</strong><p className="muted">Students enrolled</p>
-        {classes.map((group, i) => {
-          const count = students.filter(row => row.classId === group._id).length;
-          return <div className="bar-row" key={group._id}><span>{group.name} · {group.section}</span><strong>{count}</strong>
-            <div className="track"><div style={{ width: (percent(count, students.length) ?? 0) + '%', background: colors[i % colors.length] }} /></div></div>;
-        })}
-      </article>}
-      {Object.hasOwn(counts, 'results') && <article className="panel analytics"><h2>Performance risk matrix</h2>
-        <strong className="big-number">{scoreRows.length}</strong><p className="muted">Recorded exam results</p>
-        <div className="risk-stack">{buckets.map(({ label, count }, i) => <span title={label + ': ' + count}
-          key={label} style={{ flexGrow: count, background: ['#48c650', '#ffb93b', '#ef6671'][i] }} />)}</div>
-        {buckets.map(({ label, count }) => <div className="bar-row" key={label}><span>{label}</span><strong>{count}</strong></div>)}
-        <button onClick={() => go('results')}>View results</button>
-      </article>}
-      {Object.hasOwn(counts, 'attendance') && <><article className="panel analytics heat"><h2>Student attendance heatmap</h2>
-        {days.length ? <div className="table-wrap"><table className="heat-table">
-          <thead><tr><th>Class</th>{days.map(day => <th key={day}>{day.slice(5)}</th>)}</tr></thead>
-          <tbody>{classes.map(group => <tr key={group._id}><th>{group.name} · {group.section}</th>
-            {days.map(day => {
-              const records = attendance.filter(row => row.date === day && students.some(student => student._id === row.studentId && student.classId === group._id));
-              const value = percent(records.filter(row => row.status === 'Present' || row.status === 'Late').length, records.length);
-              return <td key={day}><span style={{ background: value === null ? 'var(--line)' : 'rgba(67, 79, 219, ' + (.25 + value * .0075) + ')' }}>{value === null ? '—' : value + '%'}</span></td>;
-            })}</tr>)}</tbody></table></div> : <p className="muted">Attendance will appear once recorded.</p>}
-      </article><article className="panel analytics"><h2>Attendance breakdown</h2>
-        <div className="ring" style={{ '--value': (percent(present, attendance.length) ?? 0) + '%' }}><strong>{rate(present, attendance.length)}</strong></div>
-        {['Present', 'Absent', 'Late', 'On leave'].map(status => <div className="bar-row" key={status}>
-          <span>{status}</span><strong>{attendance.filter(row => row.status === status).length}</strong></div>)}
-      </article></>}
-      {Object.hasOwn(counts, 'fees') && <article className="panel analytics"><h2>Fee collection</h2>
-        <strong className="big-number">{paid.toLocaleString()}</strong><p className="muted">Payments recorded</p>
-        <div className="bar-row"><span>Total billed</span><strong>{due.toLocaleString()}</strong></div>
-        <div className="bar-row"><span>Outstanding</span><strong>{Math.max(0, due - paid).toLocaleString()}</strong></div>
-      </article>}
-    </div>
-  </>;
+export default function Dashboard({ user, counts, go, year, years, onYear, schoolName, refresh }) {
+  const [data,setData]=useState(null);
+  const [error,setError]=useState('');
+  const [period,setPeriod]=useState('all');
+  useEffect(()=>{
+    let active=true;
+    setError('');
+    Promise.all([...keys.map(key=>[key,'records/'+key]),...['activity','messages','contacts'].map(key=>[key,'workspace/'+key])]
+      .filter(([key])=>!keys.includes(key)||Object.hasOwn(counts,key))
+      .map(async ([key,path])=>[key,await api(path)])).then(entries=>{if(active)setData(Object.fromEntries(entries));},err=>{if(active)setError(err.message);});
+    return ()=>{active=false;};
+  },[counts]);
+  const today=new Date(), todayKey=day(today);
+  const students=(data?.students??[]).filter(row=>!year||row.year===year);
+  const studentIds=new Set(students.map(row=>row._id));
+  const start=period==='week'?day(shift(today,-6)):period==='month'?day(new Date(today.getFullYear(),today.getMonth(),1)):period==='today'?todayKey:'';
+  const inPeriod=(date)=>!start||(date>=start&&date<=todayKey);
+  const attendance=(data?.attendance??[]).filter(row=>studentIds.has(row.studentId)&&inPeriod(row.date));
+  const exams=data?.exams??[];
+  const examsById=new Map(exams.map(row=>[row._id,row]));
+  const scores=students.map(student=>{
+    const marks=(data?.results??[]).filter(row=>row.studentId===student._id && inPeriod(examsById.get(row.examId)?.date) && examsById.get(row.examId)?.maximum);
+    const records=attendance.filter(row=>row.studentId===student._id);
+    return {id:student._id,name:student.name,score:ratio(sum(marks,'marks'),marks.reduce((total,row)=>total+examsById.get(row.examId).maximum,0)),count:marks.length,records:records.length,attendance:ratio(records.filter(valid).length,records.length)};
+  }).filter(row=>row.count).sort((a,b)=>b.score-a.score);
+  const fees=new Set((data?.fees??[]).filter(row=>studentIds.has(row.studentId)).map(row=>row._id));
+  const payments=(data?.payments??[]).filter(row=>fees.has(row.feeId)&&inPeriod(row.date));
+  const admissions=(data?.admissions??[]).filter(row=>inPeriod(row.date));
+  const deliveries=(data?.delivery??[]).filter(row=>inPeriod(row.date));
+  const fleet=(data?.fleet??[]).filter(row=>inPeriod(row.date));
+  const books=data?.library??[];
+  const allLoans=(data?.loans??[]).filter(row=>studentIds.has(row.studentId));
+  const loans=allLoans.filter(row=>inPeriod(row.date));
+  const classes=data?.classes??[];
+  const groups=classes.map(row=>({...row,students:students.filter(student=>student.classId===row._id)}));
+  const days=[...new Set(attendance.map(row=>row.date))].sort().slice(-6);
+  const week=Array.from({length:7},(_,i)=>day(shift(today,i-6)));
+  const months=Array.from({length:12},(_,i)=>new Date(today.getFullYear(),today.getMonth()+i-11,1));
+  const monthLabels=months.map(date=>date.toLocaleDateString(undefined,{month:'short'}));
+  const monthCount=(rows,key)=>months.map(date=>rows.filter(row=>row[key]?.startsWith(day(date).slice(0,7))).length);
+  const channels=['SMS','Email','App Push','WhatsApp'];
+  const delivered=sum(deliveries,'delivered'), failed=sum(deliveries,'failed');
+  const inbox=(data?.messages??[]).filter(row=>row.to===user.id);
+  const contacts=data?.contacts??[];
+  const sender=row=>contacts.find(person=>person._id===row.from);
+  const parents=contacts.filter(row=>row.role==='parent');
+  const parentCounts=parents.map(row=>inbox.filter(message=>message.from===row._id).length);
+  const activeParents=parentCounts.filter(count=>count>0).length;
+  const categories=[...new Set(books.map(row=>row.category||'Other'))].map(name=>[name,sum(books.filter(row=>(row.category||'Other')===name),'copies')]).sort((a,b)=>b[1]-a[1]);
+  const copies=sum(books,'copies'), issued=allLoans.filter(row=>row.status==='Issued').length, reserved=allLoans.filter(row=>row.status==='Reserved').length;
+  const available=Math.max(0,copies-issued-reserved);
+  const fleetDays=[...new Set(fleet.map(row=>row.date))].sort().slice(-7);
+  const recentVehicles=[...new Map([...fleet].sort((a,b)=>a.date.localeCompare(b.date)).map(row=>[row.routeId,row])).values()];
+  const metrics=[['Attendance rate',ratio(attendance.filter(valid).length,attendance.length)+'%','attendance','✓'],['New admissions',number(admissions.length),'admissions','♙'],['Fees collected',number(sum(payments,'amount')),'payments','＄'],['Upcoming exams',number(exams.filter(row=>row.date>=todayKey).length),'exams','▤']];
+  const exportCSV=()=>{
+    const blob=new Blob(['Metric,Value\r\n'+metrics.map(([label,value])=>label+',"'+value+'"').join('\r\n')],{type:'text/csv'});
+    const url=URL.createObjectURL(blob), link=document.createElement('a');
+    link.href=url;link.download='admin-dashboard.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const action=(key,label)=> <button className="erp-link" onClick={()=>go(key)}>{label} →</button>;
+  return <div className="erp">
+    <div className="erp-heading"><div><h1>Admin Dashboard</h1><p className="breadcrumbs">Dashboard / Admin Dashboard</p></div>
+      <div className="actions"><select aria-label="Dashboard academic year" value={year} onChange={e=>onYear(e.target.value)}><option value="">All academic years</option>{years.map(y=><option key={y}>{y}</option>)}</select>
+        <select value={period} aria-label="Report period" onChange={e=>setPeriod(e.target.value)}><option value="all">All time</option><option value="today">Today</option><option value="week">This Week</option><option value="month">This Month</option></select>
+        <details className="erp-menu"><summary>↓ Export</summary><div><button onClick={exportCSV}>Export CSV</button><button onClick={()=>window.print()}>Print / PDF</button></div></details>
+        <button onClick={refresh} aria-label="Refresh dashboard">↻</button><details className="erp-menu"><summary className="primary">⊕ Quick Add</summary><div>{[['students','New Student'],['teachers','New Teacher'],['staff','New Staff'],['exams','Create Exam'],['payments','Collect Fee'],['invoices','New Invoice']].map(([k,l])=><button key={k} onClick={()=>go(k,true)}>{l}</button>)}</div></details>
+      </div></div>
+    {error && <p className="error" role="alert">{error}</p>}
+    {!data ? <p role="status">{error?'Dashboard data unavailable.':'Loading dashboard…'}</p> : <>
+    <section className="panel erp-overview"><div><div className="erp-greeting"><i>▤</i><div><h2>Welcome, {user.name}</h2><small>{schoolName} · {today.toLocaleDateString(undefined,{dateStyle:'medium'})}{year&&' · '+year}</small></div></div>
+      <div className="actions"><button className="primary" onClick={()=>go('admissions',true)}>⊕ New Admission</button><button onClick={()=>go('payments',true)}>Collect Fees</button><button onClick={exportCSV}>Report</button></div></div>
+      <div className="erp-metrics">{metrics.map(([label,value,key,icon],i)=><button key={key} onClick={()=>go(key)}><i style={{color:palette[i]}}>{icon}</i><strong>{value}</strong><small>{label}</small></button>)}</div></section>
+    <div className="erp-grid">
+      <div className="erp-spotlights">{[['Faculty spotlight',data.teachers?.[0]?.name,data.teachers?.[0]?.department,'teachers','green'],['Top Student',scores[0]?.name,scores[0]&&scores[0].score+'% average exam score','students','blue']].map(([label,name,detail,key,color])=><article className={'erp-spotlight '+color} key={key}><small>{label}</small><h2>{name||'—'}</h2><p>{detail}</p><button onClick={()=>go(key,false,key==='students'&&scores[0]?{id:scores[0].id,name:scores[0].name}:undefined)}>View {key}</button></article>)}</div>
+      <Card section="Capacity" title="Class-Wise Distribution" footer={action('classes','View classes')}><strong className="big-number">{number(students.length)}</strong><p className="muted">Total students enrolled</p>
+        {groups.map((row,i)=><Bar key={row._id} label={row.name+' · '+row.section} value={ratio(row.students.length,students.length)} meta={number(row.students.length)+' · '+ratio(row.students.length,students.length)+'%'} color={palette[i%5]}/>)}
+        <Stats items={[[ 'Sections',classes.length],['Avg. class size',classes.length?Math.round(students.length/classes.length):0]]}/></Card>
+      <Card section="Heat" title="Performance Risk Matrix" footer={action('results','View results')}><strong className="big-number">{scores.length}</strong><p className="muted">Students assessed</p>
+        <div className="risk-stack">{[scores.filter(row=>row.score>=80).length,scores.filter(row=>row.score>=60&&row.score<80).length,scores.filter(row=>row.score<60).length].map((v,i)=><span key={i} style={{flexGrow:v,background:['#18b833','#efb500','#e94060'][i]}}/>)}</div><Scatter scores={scores}/>
+        <Stats items={[[ 'On track',scores.filter(row=>row.score>=80).length],['Review',scores.filter(row=>row.score>=60&&row.score<80).length],['Support',scores.filter(row=>row.score<60).length]]}/></Card>
+      <Card section="Intelligence" title="Student Attendance Heatmap" wide footer={action('attendance','View attendance')}>
+        {days.length ? <div className="erp-heat-scroll"><table className="erp-heat"><thead><tr><th>Class</th>{days.map(d=><th key={d}>{new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',day:'numeric'})}</th>)}</tr></thead>
+          <tbody>{groups.map(row=><tr key={row._id}><th>{row.name} · {row.section}</th>{days.map(d=>{const entries=attendance.filter(a=>a.date===d&&row.students.some(s=>s._id===a.studentId));const pct=ratio(entries.filter(valid).length,entries.length);return <td key={d}><button onClick={()=>go('attendance',false,{date:d,classId:row._id})} title={entries.length?pct+'% present':'No entries'} style={{background:entries.length?['#dce3fa','#adb9f0','#8394e7','#4059dc'][pct>=95?3:pct>=90?2:pct>=85?1:0]:'var(--line)'}}>{entries.length?pct+'%':'—'}</button></td>;})}</tr>)}</tbody></table></div> : <p className="muted">No attendance for this period.</p>}
+        <div className="erp-legend">{['Below 85%','85–89%','90–94%','95% and above'].map((l,i)=><span key={l}><i style={{background:['#dce3fa','#adb9f0','#8394e7','#4059dc'][i]}}/>{l}</span>)}</div></Card>
+      <Card section="Attendance" title="Attendance Breakdown"><Ring value={ratio(attendance.filter(valid).length,attendance.length)} label="Attendance rate" color="#18b833"/>
+        <Stats items={['Present','Absent','On leave','Late'].map(status=>[status,attendance.filter(row=>row.status===status).length])}/></Card>
+      <Card section="Engagement" title="Weekly Communication Trend" wide footer={action('delivery','Delivery logs')}><strong className="big-number">{number(week.reduce((n,d)=>n+sum(deliveries.filter(row=>row.date===d),'delivered'),0))}</strong><p className="muted">Delivered in the last 7 days</p>
+        <Plot type="area" label="Weekly communication trend" labels={week.map(d=>d.slice(5))} series={channels.map(name=>({name,values:week.map(d=>sum(deliveries.filter(row=>row.channel===name&&row.date===d),'delivered'))}))}/></Card>
+      <Card section="Reach" title="Parent Engagement" footer={action('accounts','View accounts')}><Ring value={ratio(activeParents,parents.length)} label="Parents who sent a message"/>
+        {[['Highly active',parentCounts.filter(n=>n>=3).length],['Active',parentCounts.filter(n=>n>0&&n<3).length],['No messages',parentCounts.filter(n=>n===0).length]].map(([l,n],i)=><Bar key={l} label={l} value={ratio(n,parents.length)} color={palette[i]}/>)}</Card>
+      <Card section="Activity" title="Activity Timeline" footer={action('activity','View all activity')}>
+        {(data.activity??[]).slice(0,6).map(row=><div className="erp-list-row" key={row._id}><i>◇</i><div><strong>{row.title}</strong><small>{new Date(row.createdAt).toLocaleString()}</small></div><span className="pill">{row.kind}</span></div>)}
+        {!data.activity?.length&&<p className="muted">New record activity will appear here.</p>}</Card>
+      <Card section="Inbox" title="Recent Parent Messages" footer={action('messages','View all messages')}>
+        {inbox.filter(row=>sender(row)?.role==='parent').slice(0,3).map(row=><div className="erp-list-row" key={row._id}><i>✉</i><div><strong>{sender(row).name}</strong><p className="erp-snippet">{row.body}</p><button onClick={()=>go('messages',false,{to:row.from})}>Reply</button></div></div>)}
+        {!inbox.some(row=>sender(row)?.role==='parent')&&<p className="muted">No parent messages yet.</p>}</Card>
+      <Card section="Delivery" title="Delivery Success" footer={action('delivery','Manage delivery logs')}><Ring value={ratio(delivered,delivered+failed)} label="Overall success rate" color="#18b833"/>
+        {channels.map((name,i)=>{const rows=deliveries.filter(row=>row.channel===name);return <Bar key={name} label={name} value={ratio(sum(rows,'delivered'),sum(rows,'delivered')+sum(rows,'failed'))} color={palette[i]}/>;})}
+        <Stats items={[[ 'Failed',number(failed)],['Pending',number(sum(deliveries,'pending'))],['Queued',number(sum(deliveries,'queued'))]]}/></Card>
+      <Card section="Insights" title="Enrollment & Growth Trend" wide footer={action('students','View students')}><Stats items={[[ 'Total students',students.length],['New admissions',admissions.length]]}/>
+        <Plot label="Enrollment and growth trend" labels={monthLabels} series={[{name:'Enrollments',values:monthCount(students,'joined')},{name:'Applications',values:monthCount(admissions,'date')}]}/></Card>
+      <Card section="Demographics" title="Gender Distribution">{groups.map(group=><div className="erp-bar" key={group._id}><div><span>{group.name} · {group.section}</span><strong>{group.students.length}</strong></div><div className="risk-stack">{['Male','Female','Other','Unspecified'].map((g,i)=><span key={g} title={g+': '+group.students.filter(s=>(s.gender||'Unspecified')===g).length} style={{flexGrow:group.students.filter(s=>(s.gender||'Unspecified')===g).length,background:['#516ddd','#ec5b9d','#45b988','#a8adc0'][i]}}/>)}</div></div>)}
+        <div className="erp-legend">{['Male','Female','Other','Unspecified'].map((g,i)=><span key={g}><i style={{background:['#516ddd','#ec5b9d','#45b988','#a8adc0'][i]}}/>{g}</span>)}</div></Card>
+      <Card section="Resources" title="Books Issued Trend" wide footer={action('loans','Book loans')}><Stats items={[[ 'Loans',loans.filter(row=>row.status!=='Reserved').length],['Returned',loans.filter(row=>row.status==='Returned').length],['Overdue',loans.filter(row=>row.status==='Issued'&&row.due<todayKey).length]]}/>
+        <Polar values={monthCount(loans.filter(row=>row.status!=='Reserved'),'date')} months={monthLabels}/></Card>
+      <Card section="Inventory" title="Book Availability" footer={action('library','Library catalogue')}><Ring value={ratio(available,copies)} label={number(available)+' of '+number(copies)+' copies available'}/>
+        <Stats items={[[ 'Issued',issued],['Reserved',reserved],['Low stock titles',books.filter(b=>b.copies-allLoans.filter(l=>l.bookId===b._id&&l.status!=='Returned').length<=2).length]]}/>
+        {categories.map(([name,total],i)=>{const ids=new Set(books.filter(row=>(row.category||'Other')===name).map(row=>row._id));return <Bar key={name} label={name} value={ratio(Math.max(0,total-allLoans.filter(row=>ids.has(row.bookId)&&row.status!=='Returned').length),total)} color={palette[i%5]}/>;})}</Card>
+      <Card section="Trending" title="Most Borrowed Books" wide footer={action('loans','Full report')}><div>{books.map(book=>({...book,issues:loans.filter(row=>row.bookId===book._id&&row.status!=='Reserved').length})).filter(book=>book.issues).sort((a,b)=>b.issues-a.issues).slice(0,5).map((book,i)=><div className="erp-list-row" key={book._id}><i>{i+1}</i><div><strong>{book.name}</strong><small>{book.category||'Other'} · {book.author}</small></div><strong>{book.issues} issues</strong></div>)}</div></Card>
+      <Card section="Categories" title="Popular Categories"><div className="erp-bubbles">{categories.slice(0,5).map(([name,total],i)=><span key={name} style={{background:palette[i],width:56-i*5}} title={name}>{ratio(total,copies)}%</span>)}</div>
+        {categories.map(([name,total],i)=><Bar key={name} label={name} value={ratio(total,copies)} meta={number(total)+' copies'} color={palette[i%5]}/>)}
+        <Stats items={[[ 'Active readers',new Set(loans.filter(l=>l.status!=='Reserved').map(l=>l.studentId)).size],['Total borrowed',loans.filter(l=>l.status!=='Reserved').length]]}/></Card>
+      <Card section="Operations" title="Fuel Consumption Trend" wide footer={action('fleet','Fleet logs')}><Stats items={[[ 'Fuel',number(sum(fleet,'fuel'))+' L'],['Avg. per logged route',number(Math.round(sum(fleet,'fuel')/Math.max(1,new Set(fleet.map(r=>r.routeId)).size)))+' L'],['Cost',number(sum(fleet,'cost'))]]}/>
+        <Plot type="bar" label="Fuel consumption trend" labels={fleetDays.map(d=>d.slice(5))} series={[{name:'Fuel (L)',values:fleetDays.map(d=>sum(fleet.filter(row=>row.date===d),'fuel'))},{name:'Distance (km)',values:fleetDays.map(d=>sum(fleet.filter(row=>row.date===d),'distance'))}]}/></Card>
+      <Card section="Fleet" title="Fleet Utilization" footer={action('transport','View routes')}><Stats items={[[ 'Active routes',recentVehicles.filter(row=>row.status==='Active').length],['Trips',number(sum(fleet,'trips'))],['Distance',number(sum(fleet,'distance'))+' km']]}/>
+        <div className="erp-ring-row"><Ring value={ratio(recentVehicles.filter(r=>r.status==='Active').length,recentVehicles.length)} label="Active" color="#18b833"/><Ring value={ratio(sum(fleet,'riders'),sum(fleet,'seats'))} label="Occupancy"/><Ring value={ratio(sum(fleet,'onTime'),sum(fleet,'trips'))} label="On-time" color={palette[1]}/></div>
+        {['Active','Idle','Service','Offline'].map((status,i)=><Bar key={status} label={status} value={ratio(recentVehicles.filter(r=>r.status===status).length,recentVehicles.length)} color={palette[i]}/>)}</Card>
+    </div></>}
+  </div>;
 }
