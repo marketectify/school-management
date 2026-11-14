@@ -44,13 +44,16 @@ export function workspaceRoutes(User) {
     return { $or: [staff, { role: 'parent', studentIds: { $in: students } }] };
   }
   router.post('/student-leave', async (req,res) => {
-    if (req.user.role !== 'student' || req.user.studentIds.length !== 1) return res.sendStatus(403);
+    if (!['student','parent'].includes(req.user.role)) return res.sendStatus(403);
+    const studentId = req.user.role === 'parent' ? req.body?.studentId : req.user.studentIds[0];
+    if (!mongoose.isObjectIdOrHexString(studentId)) return res.sendStatus(403);
+    if (!req.user.studentIds.some(id => id.equals(studentId))) return res.sendStatus(403);
     const { date, reason } = req.body ?? {};
     if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date)) ||
         new Date(date).toISOString().slice(0,10) !== date || typeof reason !== 'string' || !reason.trim() || reason.length > 200) {
       return res.status(400).json({ message: 'Enter a valid leave date and reason.' });
     }
-    const student = await models.students.findOne({ _id: req.user.studentIds[0], schoolId: null });
+    const student = await models.students.findOne({ _id: studentId, schoolId: null });
     if (!student) return res.sendStatus(404);
     const existing = await models.leaves.exists({ studentId: student._id, date, status: { $in: ['Pending','Approved'] } });
     if (existing) return res.status(409).json({ message: 'You already have a leave request for that date.' });
@@ -58,7 +61,7 @@ export function workspaceRoutes(User) {
     res.sendStatus(204);
   });
   router.get('/teacher-contacts', async (req,res) => {
-    if (req.user.role !== 'student') return res.sendStatus(403);
+    if (!['student','parent'].includes(req.user.role)) return res.sendStatus(403);
     const classes = await models.students.distinct('classId',{_id:{$in:req.user.studentIds},schoolId:null});
     const ids = await models.timetable.distinct('teacherId',{classId:{$in:classes},schoolId:null});
     const teachers = await models.teachers.find({_id:{$in:ids},schoolId:null}).select('email');
