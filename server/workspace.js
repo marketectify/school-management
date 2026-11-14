@@ -1,5 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import { models } from './db.js';
 
 const { Schema } = mongoose;
 const objectId = Schema.Types.ObjectId;
@@ -26,6 +27,17 @@ export function recordActivity(owner, title, kind) {
 
 export function workspaceRoutes(User) {
   const router = express.Router();
+
+  async function contactScope(user) {
+    if (user.role === 'admin') return {};
+    const staff = { role: { $in: ['admin', 'teacher'] } };
+    if (user.role !== 'teacher') return staff;
+    const teacher = await models.teachers.findOne({ schoolId: null, email: user.email });
+    if (!teacher) return staff;
+    const classes = await models.timetable.distinct('classId', { schoolId: null, teacherId: teacher._id });
+    const students = await models.students.distinct('_id', { schoolId: null, classId: { $in: classes } });
+    return { $or: [staff, { role: 'parent', studentIds: { $in: students } }] };
+  }
   router.get('/schools', async (req, res) => res.json(req.user.role === 'admin' ? await School.find().sort('name') : []));
   router.post('/schools', async (req, res) => {
     if (req.user.role !== 'admin') return res.sendStatus(403);
@@ -36,7 +48,7 @@ export function workspaceRoutes(User) {
     res.status(201).json(await School.create({ name: name.trim(), campus: campus.trim() }));
   });
   router.get('/contacts', async (req, res) => {
-    res.json(await User.find({ _id: { $ne: req.user._id }, ...(req.user.role === 'admin' ? {} : { role: { $in: ['admin', 'teacher'] } }) })
+    res.json(await User.find({ _id: { $ne: req.user._id }, ...await contactScope(req.user) })
       .select('name role').sort('name').limit(200));
   });
   router.get('/messages', async (req, res) => {
@@ -49,7 +61,7 @@ export function workspaceRoutes(User) {
         typeof body !== 'string' || !body.trim() || body.length > 3000) {
       return res.status(400).json({ message: 'Choose a recipient and enter a message.' });
     }
-    const recipient = await User.findOne({ _id: to, ...(req.user.role === 'admin' ? {} : { role: { $in: ['admin', 'teacher'] } }) });
+    const recipient = await User.findOne({ _id: to, ...await contactScope(req.user) });
     if (!recipient) return res.status(404).json({ message: 'Recipient unavailable.' });
     res.status(201).json(await Message.create({ from: req.user._id, to, body: body.trim() }));
   });
