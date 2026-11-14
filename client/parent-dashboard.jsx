@@ -6,6 +6,15 @@ import './parent-dashboard.css';
 const modules=['students','classes','subjects','teachers','timetable','attendance','homework','submissions','exams','results','fees','payments','studentTransport','transport','loans','calendar','announcements','leaves'];
 const dateKey=(date=new Date())=>[date.getFullYear(),date.getMonth()+1,date.getDate()].map(v=>String(v).padStart(2,'0')).join('-');
 const dayLabel=value=>value?new Date(value+'T12:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'}):'';
+const yesterday=date=>{const copy=new Date(date+'T12:00:00');copy.setDate(copy.getDate()-1);return dateKey(copy);};
+const shortTime=stamp=>stamp?new Date(stamp).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
+function subjectTheme(name,score){
+  if (/math|algebra|geometry/i.test(name)) return ['math','green'];
+  if (/science|physics|chemistry|biology/i.test(name)) return ['science','green'];
+  if (/computer|coding/i.test(name)) return ['code','purple'];
+  if (/english|language|literature/i.test(name)) return ['book',score!=null&&score<75?'gold':'blue'];
+  return ['book','sky'];
+}
 const within=(a,b)=>Math.round((Date.parse(a)-Date.parse(b))/86400000);
 const sum=(rows,key)=>rows.reduce((n,row)=>n+(Number(row[key])||0),0);
 const percent=(n,d)=>d?Math.round(n/d*100):null;
@@ -30,6 +39,8 @@ function download(name, rows) {
 export default function ParentDashboard({user,year,go}) {
   const [data,setData]=useState(null),[selected,select]=useState(''),[error,setError]=useState(''),[revision,reload]=useState(0);
   const [dialog,setDialog]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+  const [clock,setClock]=useState(()=>Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),60000);return ()=>clearInterval(timer);},[]);
   const [dismissed,setDismissed]=useState(()=>{try{return JSON.parse(localStorage.getItem('parent-read:'+user.id)??'[]');}catch{return [];}});
   const parent=user.role==='parent';
   useEffect(()=>{
@@ -60,7 +71,9 @@ export default function ParentDashboard({user,year,go}) {
       average:marks.length?Math.round(sum(marks,'score')/marks.length):null, todayRecord:attendance.find(row=>row.date===today),
       next:exams.find(row=>row.date>=today)};
   }
-  const o=overview(child), schedule=classData('timetable',child), first=child?.name?.split(' ')[0]??'Student';
+  const o=overview(child);
+  const examMinutes=o.next?Math.max(0,Math.ceil((Date.parse(o.next.date+'T'+(/^\d\d:\d\d$/.test(o.next.start??'')?o.next.start:'00:00'))-clock)/60000)):0;
+  const schedule=classData('timetable',child), first=child?.name?.split(' ')[0]??'Student';
   const teacher=find('teachers',schedule[0]?.teacherId);
   const teacherContact=d.teacherContacts?.find(row=>row.teacherId===teacher?._id)?.userId;
   const transport=own('studentTransport',child)[0], route=find('transport',transport?.routeId);
@@ -86,8 +99,8 @@ export default function ParentDashboard({user,year,go}) {
     ...o.marks.map(row=>({id:row._id,date:row.exam.date,title:'Exam result published',detail:row.exam.name+' · '+grade(row.score)})),
     ...payments.map(row=>({id:row._id,date:row.date,title:'Fee payment recorded',detail:money(row.amount)})),
   ].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
-  const notices=[...(d.activity??[]).map(row=>({id:row._id,title:row.title,date:row.createdAt?.slice(0,10),detail:row.kind,icon:'bell',read:row.read})),
-    ...unread.map(row=>({id:row._id,title:'New school message',date:row.createdAt?.slice(0,10),detail:row.body,icon:'chat'})),
+  const notices=[...(d.activity??[]).map(row=>({id:row._id,title:row.title,date:row.createdAt?.slice(0,10),time:shortTime(row.createdAt),detail:row.kind,icon:'bell',read:row.read})),
+    ...unread.map(row=>({id:row._id,title:'New school message',date:row.createdAt?.slice(0,10),time:shortTime(row.createdAt),detail:row.body,icon:'chat'})),
     ...announcements.map(row=>({id:row._id,title:row.name,date:row.date,detail:row.body,icon:'megaphone'}))].filter(row=>!row.read&&!dismissed.includes(row.id)).sort((a,b)=>(b.date??'').localeCompare(a.date??'')).slice(0,8);
   const open=(key,add=false,target)=>()=>go(key,add,target);
   const jump=id=>()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -150,14 +163,20 @@ export default function ParentDashboard({user,year,go}) {
         <div className="pd-child-foot"><Action icon="grid" onClick={()=>{select(row._id);setDialog('timetable');}}>Timetable</Action><Action icon="arrow" onClick={profile(row)}>Details ›</Action></div>
       </article>;})}</div>
     </Section>
-    <Section caption={first+' · Academic Health'} title="Subject Vitals" icon="arrow">
-      <div className="pd-vitals">{subjects.map((row,i)=><article key={row.id} className={'pd-panel pd-vital pd-'+tones[i%tones.length]}>
-        <Icon name={i%2?'book':'cap'} tone={tones[i%tones.length]}/><h3>{row.name}</h3><div><b>{row.score==null?'—':grade(row.score)}</b>
-          {row.rows.length>1&&<svg role="img" aria-label="Recent exam scores" viewBox="0 0 72 28"><polyline fill="none" stroke="currentColor" strokeWidth="2" points={row.rows.slice(-5).map((item,j,list)=>[2+j*68/(list.length-1),26-item.score*.24].join(',')).join(' ')}/></svg>}</div>
-        <small>{row.score==null?'Awaiting results':show(row.score)+' average'}</small><details><summary>More ⌄</summary>
-          {row.rows.slice(-4).reverse().map(item=><p key={item._id}>{item.exam.name} <strong>{show(item.score)}</strong></p>)}
-          {!row.rows.length&&<Empty>No results published.</Empty>}</details>
-      </article>)}</div>{!subjects.length&&<div className="pd-panel"><Empty>No subjects assigned.</Empty></div>}
+    <Section caption={first+' · Academic Health'} title="Subject Vitals" icon="arrow" action={<span className="pd-hint">Select More for results</span>}>
+      <div className="pd-vitals">{subjects.map(row=>{
+        const [icon,tone]=subjectTheme(row.name,row.score);
+        const latest=row.rows.at(-1), previous=row.rows.at(-2);
+        const change=latest&&previous?latest.score-previous.score:null;
+        return <article key={row.id} className={'pd-panel pd-vital pd-'+tone}>
+          <div className="pd-vital-body"><Icon name={icon} tone={tone}/><h3>{row.name}</h3><div className="pd-vital-score"><b>{row.score==null?'—':grade(row.score)}</b>
+            {row.rows.length>1&&<svg role="img" aria-label="Recent exam scores" viewBox="0 0 72 28"><polyline fill="none" stroke="currentColor" strokeWidth="2.5" points={row.rows.slice(-5).map((item,j,list)=>[2+j*68/(list.length-1),26-item.score*.24].join(',')).join(' ')}/></svg>}</div>
+          <small className="pd-vital-trend">{change!=null?<><DashboardIcon name={change<0?'trendDown':change>0?'arrow':'minus'}/>{change>0?'+':''}{change} pp vs last exam</>:row.score==null?'Awaiting results':row.score<75?'Needs focus':show(row.score)+' average'}</small></div>
+          <details><summary>More <DashboardIcon name="chevron"/></summary>
+            {row.rows.slice(-4).reverse().map(item=><p key={item._id}>{item.exam.name} <strong>{show(item.score)}</strong></p>)}
+            {!row.rows.length&&<Empty>No results published.</Empty>}</details>
+        </article>;
+      })}</div>{!subjects.length&&<div className="pd-panel"><Empty>No subjects assigned.</Empty></div>}
     </Section>
     <div className="pd-split">
       <Section caption="Student Activity" title={first+"'s Timeline"} icon="arrow"><div className="pd-panel pd-timeline">
@@ -177,13 +196,13 @@ export default function ParentDashboard({user,year,go}) {
     </div>
     <div className="pd-two">
       <Section caption="Inbox" title="Communication Hub" icon="chat" action={<Action icon="chat" onClick={open('messages')}>Inbox · {unread.length} unread</Action>}>
-        <div className="pd-panel">{incoming.slice(0,4).map(row=><Row key={row._id} icon="chat" tone="pink" title={find('contacts',row.from)?.name??'School message'} detail={row.body} end={<button onClick={open('messages',false,{to:row.from})}>Reply</button>}/>)}
+        <div className="pd-panel">{incoming.slice(0,4).map(row=><Row key={row._id} icon="chat" tone="pink" title={find('contacts',row.from)?.name??'School message'} detail={row.body} end={<button className="pd-inbox-time" aria-label="Open message and reply" onClick={open('messages',false,{to:row.from})}>{!row.read&&<i/>}{shortTime(row.createdAt)}</button>}/>)}
           {announcements.slice(0,3).map(row=><Row key={row._id} icon="megaphone" title={row.name} detail={row.body}/>)}
           {!incoming.length&&!announcements.length&&<Empty>No messages or announcements.</Empty>}</div>
       </Section>
-      <div id="pd-transport"><Section caption="Transport" title="School Bus" icon="bus"><div className="pd-panel">
-        {transport?<><div className="pd-stops">{stops.map((stop,i)=><span key={i}>{stop}</span>)}</div>
-          <div className="pd-two pd-transport-facts"><Row icon="bus" title={[route?.vehicle,route?.name].filter(Boolean).join(' · ')||'Assigned bus'} detail={transport.name}/>
+      <div id="pd-transport"><Section caption="Transport" title="School Bus" icon="bus" action={transport&&<span className="pd-transport-status"><i/>Assigned</span>}><div className="pd-panel">
+        {transport?<><div className="pd-stops">{stops.map((stop,i)=><span key={i} className={stop===transport.name?'pd-selected-stop':undefined}>{stop===transport.name&&<DashboardIcon name="bus"/>}{stop}</span>)}</div>
+          <p className="pd-pickup">Pickup at <b>{transport.name}</b> · <strong>{transport.pickup}</strong></p><div className="pd-two pd-transport-facts"><Row icon="bus" title={[route?.vehicle,route?.name].filter(Boolean).join(' · ')||'Assigned bus'} detail={transport.name}/>
           <Row icon="users" tone="sky" title={route?.driver??'Driver'} detail={'Seat '+transport.seat}/><Row icon="time" tone="green" title={transport.pickup} detail="Pickup time"/>
           <Row icon="time" tone="gold" title={transport.drop} detail="Drop time"/></div></>:<Empty>No transport assignment on record.</Empty>}</div></Section></div>
     </div>
@@ -191,19 +210,23 @@ export default function ParentDashboard({user,year,go}) {
       <div className="pd-panel pd-board">{['To Do','In Progress','Submitted','Reviewed'].map((name,i)=>{
         const rows=o.homework.filter(row=>{const item=o.submissions.find(entry=>entry.homeworkId===row._id);return name===(item?.status==='Graded'?'Reviewed':item?.status==='Submitted'?'Submitted':item?'In Progress':'To Do');});
         return <div className={'pd-lane pd-'+['gold','blue','sky','green'][i]} key={name}><h3><i/>{name}<small>{rows.length}</small></h3>
-          {rows.map(row=><article key={row._id}><span className="pd-chip">{find('subjects',row.subjectId)?.name??'Homework'}</span><h4>{row.name}</h4><small>{name==='Reviewed'?(o.submissions.find(item=>item.homeworkId===row._id)?.notes||'Reviewed'):'Due '+dayLabel(row.due)}</small></article>)}
+          {rows.map(row=><article key={row._id}><span className="pd-chip"><DashboardIcon name={subjectTheme(find('subjects',row.subjectId)?.name??'')[0]}/>{find('subjects',row.subjectId)?.name??'Homework'}</span>
+            <h4>{row.name}</h4><div className="pd-lane-meta">
+              <small><DashboardIcon name={name==='Submitted'?'check':name==='Reviewed'?'chat':'users'}/>{name==='Reviewed'?'Reviewed':name==='Submitted'?'Submitted':find('teachers',schedule.find(item=>item.subjectId===row.subjectId)?.teacherId)?.name??'Class assignment'}</small>
+              <small><DashboardIcon name="time"/>{dayLabel(name==='Submitted'?o.submissions.find(item=>item.homeworkId===row._id)?.date:row.due)}</small>
+            </div>{name==='Reviewed'&&o.submissions.find(item=>item.homeworkId===row._id)?.notes&&<details><summary>Feedback</summary><small>{o.submissions.find(item=>item.homeworkId===row._id).notes}</small></details>}</article>)}
           {!rows.length&&<Empty>No assignments</Empty>}</div>;
       })}</div>
     </Section></div>
     <div className="pd-split pd-finance">
       <Section caption="Finance" title="Fee Timeline" icon="wallet" action={<Action primary icon="wallet" onClick={()=>setDialog('fees')}>View Balance</Action>}>
-        <div className="pd-panel"><div className="pd-fee-banner"><small>Paid this year</small><strong>{money(paid)} <small>/ {money(sum(fees,'amount'))}</small></strong><Meter value={percent(paid,sum(fees,'amount'))}/></div>
-          {fees.filter(row=>balance(row)>0).slice(0,4).map(row=><Row key={row._id} icon="calendar" tone={row.due<today?'red':'gold'} title={row.name} detail={'Due '+dayLabel(row.due)} end={<b>{money(balance(row))}</b>}/>)}
-          {payments.slice(0,4).map(row=><Row key={row._id} icon="check" tone="green" title={find('fees',row.feeId)?.name??'Payment'} detail={'Paid '+dayLabel(row.date)+' · '+money(row.amount)} end={<button onClick={()=>download('receipt',[['Date','Amount','Fee'],[row.date,row.amount,find('fees',row.feeId)?.name]])}>Receipt</button>}/>)}</div>
+        <div className="pd-panel"><div className="pd-fee-banner"><small>Paid this year</small><strong>{money(paid)} <small>/ {money(sum(fees,'amount'))}</small></strong><div className="pd-fee-segments" aria-label="Fee balance distribution">{[paid,due-fees.filter(row=>row.due<today).reduce((n,row)=>n+balance(row),0),fees.filter(row=>row.due<today).reduce((n,row)=>n+balance(row),0)].map((amount,i)=>amount>0&&<i key={i} style={{flexGrow:amount,background:['#10a24c','#dd8200','#ea2451'][i]}}/>)}</div></div>
+          {fees.filter(row=>balance(row)>0).slice(0,4).map(row=><Row key={row._id} icon="calendar" tone={row.due<today?'red':'gold'} title={row.name} detail={'Due '+dayLabel(row.due)} end={<span className="pd-fee-value"><b>{money(balance(row))}</b><span className={'pd-chip pd-'+(row.due<today?'red':'gold')}>{row.due<today?'Overdue':'Due'}</span></span>}/>)}
+          {payments.slice(0,4).map(row=><Row key={row._id} icon="check" tone="green" title={find('fees',row.feeId)?.name??'Payment'} detail={'Paid '+dayLabel(row.date)+' · '+money(row.amount)} end={<span className="pd-fee-value"><b>{money(row.amount)}</b><Action icon="download" onClick={()=>download('receipt',[['Date','Amount','Fee'],[row.date,row.amount,find('fees',row.feeId)?.name]])}>Receipt</Action></span>}/>)}</div>
       </Section>
       <div id="pd-exams"><Section caption="Exams" title="Exam Hub" icon="cap" action={<Action icon="calendar" onClick={()=>setDialog('exams')}>Schedule</Action>}>
-        <div className="pd-panel">{o.next?<div className="pd-exam-banner"><div><strong>{within(o.next.date,today)}</strong><small>Days left</small></div><div><b>{o.next.name}</b><small>{dayLabel(o.next.date)}</small></div></div>:<Empty>No upcoming exam.</Empty>}
-          <h3 className="pd-subheading">Subject Readiness</h3>{subjects.map(row=><div className="pd-ready pd-purple" key={row.id}><span>{row.name}</span><Meter value={row.score}/><strong>{show(row.score)}</strong></div>)}</div>
+        <div className="pd-panel">{o.next?<div className="pd-exam-banner"><div className="pd-countdown">{[[Math.floor(examMinutes/1440),'Days'],[Math.floor(examMinutes/60)%24,'Hrs'],[examMinutes%60,'Min']].map(([n,unit])=><div key={unit}><strong>{String(n).padStart(2,'0')}</strong><small>{unit}</small></div>)}</div><div><b>{o.next.name}</b><small>{[dayLabel(o.next.date),o.next.room,o.next.start].filter(Boolean).join(' · ')}</small></div></div>:<Empty>No upcoming exam.</Empty>}
+          <h3 className="pd-subheading">Subject Readiness</h3>{subjects.map(row=><div className="pd-ready pd-purple" key={row.id}><span>{row.name}</span><span className="pd-ready-dots" aria-hidden="true">{Array.from({length:5},(_,i)=><i key={i} className={i<Math.round((row.score??0)/20)?'filled':undefined}/>)}</span><strong>{show(row.score)}</strong></div>)}</div>
       </Section></div>
     </div>
     <Section caption="Recognition" title="Achievement Gallery" icon="medal"><div className="pd-panel pd-gallery">
@@ -214,17 +237,22 @@ export default function ParentDashboard({user,year,go}) {
         ['Bookworm','book',own('loans',child).some(row=>row.status==='Returned')?'Returned a library book':'Target · return a book'],
         ['Top Subject','cap',subjects.filter(row=>row.score!=null).sort((a,b)=>b.score-a.score)[0]?.name??'Awaiting marks'],
         ['Exam Milestone','flag',o.marks.length+' results published'],
-      ].map(([label,icon,detail],i)=><article key={label}><Icon name={icon} tone={tones[i]}/><strong>{label}</strong><small>{detail}</small></article>)}
+      ].map(([label,icon,detail],i)=><article key={label} tabIndex={0}><Icon name={icon} tone={["gold","green","purple","sky","blue","pink"][i]}/><strong>{label}</strong><small>{detail}</small></article>)}
     </div></Section>
     <div className="pd-two">
       <div id="pd-agenda"><Section caption="Agenda" title="What's Coming Up" icon="calendar" action={<Action icon="calendar" onClick={open('calendar')}>Calendar</Action>}>
         <div className="pd-panel">{['Today','This Week','Upcoming'].map((section,i)=>{
           const rows=agenda.filter(row=>i===0?row.date===today:i===1?row.date>today&&within(row.date,today)<=7:within(row.date,today)>7);
-          return rows.length>0&&<div key={section}><h3 className="pd-subheading">{section}</h3>{rows.map(row=><Row key={row._id} icon="calendar" tone={tones[i]} title={row.name} detail={[dayLabel(row.date),row.start,row.notes].filter(Boolean).join(' · ')}/>)}</div>;
+          return rows.length>0&&<div key={section}><h3 className="pd-subheading">{section}</h3>{rows.map(row=><article className={'pd-agenda-row pd-'+tones[(i+rows.indexOf(row))%tones.length]} key={row._id}><time dateTime={row.date}>{row.date===today&&row.start?row.start:dayLabel(row.date)}</time><div><strong>{row.name}</strong><small>{row.notes||'School event'}</small></div></article>)}</div>;
         })}{!agenda.length&&<Empty>No upcoming events.</Empty>}</div>
       </Section></div>
       <Section caption="Feed" title="Smart Notifications" icon="bell" action={<Action icon="check" onClick={markAll}>Mark all read</Action>}>
-        <div className="pd-panel">{notices.map((row,i)=><Row key={row.id} icon={row.icon} tone={tones[i%tones.length]} title={row.title} detail={row.detail} end={<small>{dayLabel(row.date)}</small>}/>)}{!notices.length&&<Empty>No new notifications.</Empty>}</div>
+        <div className="pd-panel pd-feed">{['Today','Yesterday','Earlier'].map((group,i)=>{
+          const prior=yesterday(today);
+          const rows=notices.filter(row=>i===0?row.date===today:i===1?row.date===prior:row.date!==today&&row.date!==prior);
+          return rows.length>0&&<section key={group}><h3 className="pd-subheading">{group}</h3>{rows.map(row=><Row key={row.id} icon={row.icon}
+            tone={row.icon==='chat'?'pink':row.icon==='bell'?'red':'sky'} title={row.title} detail={row.detail} end={<small>{row.time||dayLabel(row.date)}</small>}/>)}</section>;
+        })}{!notices.length&&<Empty>No new notifications.</Empty>}</div>
       </Section>
     </div>
     </>}
