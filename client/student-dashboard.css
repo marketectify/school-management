@@ -36,3 +36,29 @@
 .sd-awards .td-icon{border-radius:50%;background:var(--td-tone);color:white;margin-bottom:5px}
 @media(max-width:1050px){.sd-academic{grid-template-columns:1fr 2fr}.sd-academic>div:last-child{grid-column:1/-1}}
 @media(max-width:610px){.sd-academic{grid-template-columns:1fr}.sd-goals,.sd-awards{grid-template-columns:repeat(2,minmax(0,1fr))}.sd-fee-top{grid-template-columns:1fr}}
+
+.sd-learning-insights{background:linear-gradient(135deg,#efedfc,#f5f4fc)}
+.dark .sd-learning-insights{background:linear-gradient(135deg,#292440,var(--surface))}
+.sd-learning-insights .td-insight-summary{align-items:flex-start;flex-direction:column;gap:10px;padding:17px}
+.sd-learning-insights .td-insight-summary .sd-ring{width:86px}
+.sd-learning-insights .sd-insight-list{margin-top:13px}
+.sd-learning-insights .sd-insight-list .sd-row{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 0}
+.sd-learning-insights .sd-insight-list .sd-row:last-child{border-bottom:0}
+.sd-updates ul,.sd-updates ol{list-style:none;padding:0;margin:0}
+.sd-updates .td-panel-heading h2>span{display:inline-flex}
+.sd-updates .td-panel-heading svg,.sd-notice-list svg,.sd-timeline svg{width:19px;height:19px}
+.sd-updates .sd-update-link,.dark .sd-updates button.sd-update-link{background:none;color:var(--brand);border:0;padding-inline:0}
+.sd-calendar-list li,.sd-timeline li{display:flex;align-items:center;gap:13px;padding:12px 0;min-width:0}
+.sd-calendar-list li+li{border-top:1px solid var(--line)}
+.sd-calendar-list li>div,.sd-timeline li>div{min-width:0;flex:1;overflow-wrap:anywhere}
+.sd-calendar-list li>div small,.sd-timeline li>div small,.sd-notice-list button small{margin-top:4px}
+.sd-date-tile{display:grid;place-content:center;gap:1px;text-align:center;width:58px;min-height:61px;flex:none;background:color-mix(in srgb,var(--line) 75%,var(--surface));border-radius:12px;color:var(--muted)}
+.sd-date-tile strong{font-size:1.28rem}.sd-date-tile small{text-transform:uppercase;font-size:.7rem}
+.sd-timeline li{position:relative;align-items:flex-start}
+.sd-timeline li:not(:last-child)::after{content:'';position:absolute;inset-inline-start:19px;top:51px;bottom:-12px;width:2px;background:var(--line)}
+.sd-timeline .td-icon{position:relative;z-index:1;width:40px;height:40px}
+.sd-timeline time{font-size:.76rem;color:var(--muted);flex:none}
+.sd-notice-list{display:grid;gap:10px}
+.sd-notice-list button,.dark .sd-notice-list button{display:flex;align-items:center;text-align:start;gap:12px;min-height:73px;width:100%;padding:12px 14px;border-radius:13px;background:color-mix(in srgb,var(--canvas) 66%,var(--surface))}
+.sd-notice-list button.urgent{border-color:#ff3457}
+.sd-notice-list button span:last-child{overflow-wrap:anywhere}
