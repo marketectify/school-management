@@ -13,6 +13,7 @@ import { hashPassword, login, logout, publicUser, requireUser } from './auth.js'
 const app = express();
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
+app.use('/api/workspace/assignment-file', express.json({ limit: '3mb' }));
 app.use('/api', express.json({ limit: '32kb' }));
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -86,7 +87,16 @@ export async function readScope(user, key) {
   if (key === 'announcements' || key === 'library') return {};
   const studentIds = user.studentIds;
   if (key === 'students') return { _id: { $in: studentIds } };
-  if (['attendance', 'results', 'fees'].includes(key)) return { studentId: { $in: studentIds } };
+  if (['attendance', 'results', 'fees', 'loans', 'submissions', 'leaves', 'studentTransport'].includes(key)) return { studentId: { $in: studentIds } };
+  if (key === 'transport') {
+    const routes = await models.studentTransport.distinct('routeId', { studentId: { $in: studentIds }, schoolId: null });
+    return { _id: { $in: routes } };
+  }
+  if (key === 'teachers' || key === 'sessions') {
+    const classes = await models.students.distinct('classId', { _id: { $in: studentIds }, schoolId: null });
+    const slots = await models.timetable.find({ classId: { $in: classes }, schoolId: null }).select('teacherId');
+    return key === 'teachers' ? { _id: { $in: slots.map(row => row.teacherId) } } : { periodId: { $in: slots.map(row => row._id) } };
+  }
   if (key === 'payments') {
     const fees = await models.fees.distinct('_id', { studentId: { $in: studentIds } });
     return { feeId: { $in: fees } };

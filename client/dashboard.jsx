@@ -1,6 +1,8 @@
 import React, { useEffect, useId, useState } from 'react';
 import { api } from './api.js';
 import './admin-dashboard.css';
+import './admin-masthead.css';
+import Spotlights from './spotlight.jsx';
 
 const palette = ['#4059dc', '#126bce', '#24ba49', '#efb500', '#7714d9'];
 const number = value => Number(value || 0).toLocaleString();
@@ -124,7 +126,7 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
   const routes=new Map((data?.transport??[]).map(route=>[route._id,route]));
   const fleetDays=[...new Set(fleet.map(row=>row.date))].sort().slice(-7);
   const recentVehicles=[...new Map([...fleet].sort((a,b)=>a.date.localeCompare(b.date)).map(row=>[row.routeId,row])).values()];
-  const metrics=[['Attendance rate',ratio(attendance.filter(valid).length,attendance.length)+'%','attendance','✓'],['New admissions',number(admissions.length),'admissions','♙'],['Fees collected',number(sum(payments,'amount')),'payments','＄'],['Upcoming exams',number(exams.filter(row=>row.date>=todayKey).length),'exams','▤']];
+  const metrics=[[period==='today'?"Today's Attendance":'Attendance Rate',ratio(attendance.filter(valid).length,attendance.length)+'%','attendance','✓'],['New admissions',number(admissions.length),'admissions','♙'],[period==='today'?'Fees Today':'Fees Collected',number(sum(payments,'amount')),'payments','＄'],['Upcoming exams',number(exams.filter(row=>row.date>=todayKey).length),'exams','▤']];
   const exportCSV=()=>{
     const blob=new Blob(['Metric,Value\r\n'+metrics.map(([label,value])=>label+',"'+value+'"').join('\r\n')],{type:'text/csv'});
     const url=URL.createObjectURL(blob), link=document.createElement('a');
@@ -132,7 +134,7 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
   };
   const action=(key,label)=> <button className="erp-link" onClick={()=>go(key)}>{label} →</button>;
   return <div className="erp">
-    <div className="erp-heading"><div><h1>Admin Dashboard</h1><p className="breadcrumbs">Dashboard / Admin Dashboard</p></div>
+    <div className="erp-heading admin-masthead"><div><h1>Admin Dashboard</h1><p className="breadcrumbs">Dashboard / Admin Dashboard</p></div>
       <div className="actions"><select aria-label="Dashboard academic year" value={year} onChange={e=>onYear(e.target.value)}><option value="">All academic years</option>{years.map(y=><option key={y}>{y}</option>)}</select>
         <select value={period} aria-label="Report period" onChange={e=>setPeriod(e.target.value)}><option value="all">All time</option><option value="today">Today</option><option value="week">This Week</option><option value="month">This Month</option></select>
         <details className="erp-menu"><summary>↓ Export</summary><div><button onClick={exportCSV}>Export CSV</button><button onClick={()=>window.print()}>Print / PDF</button></div></details>
@@ -140,11 +142,11 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
       </div></div>
     {error && <p className="error" role="alert">{error}</p>}
     {!data ? <p role="status">{error?'Dashboard data unavailable.':'Loading dashboard…'}</p> : <>
-    <section className="panel erp-overview"><div><div className="erp-greeting"><i>▤</i><div><h2>Welcome, {user.name}</h2><small>{schoolName} · {today.toLocaleDateString(undefined,{dateStyle:'medium'})}{year&&' · '+year}</small></div></div>
+    <section className="panel erp-overview admin-overview"><div><div className="erp-greeting"><i aria-hidden="true">♧</i><div><h2>Good {today.getHours()<12?'Morning':today.getHours()<18?'Afternoon':'Evening'}, Administrator</h2><small><b>{schoolName}</b> · {today.toLocaleDateString(undefined,{dateStyle:'medium'})}{year&&' · '+year}</small></div></div>
       <div className="actions"><button className="primary" onClick={()=>go('admissions',true)}>⊕ New Admission</button><button onClick={()=>go('payments',true)}>Collect Fees</button><button onClick={exportCSV}>Report</button></div></div>
       <div className="erp-metrics">{metrics.map(([label,value,key,icon],i)=><button key={key} onClick={()=>go(key)}><i style={{color:palette[i]}}>{icon}</i><strong>{value}</strong><small>{label}</small></button>)}</div></section>
     <div className="erp-grid">
-      <div className="erp-spotlights">{[['Faculty spotlight',data.teachers?.[0]?.name,data.teachers?.[0]?.department,'teachers','green'],['Top Student',scores[0]?.name,scores[0]&&scores[0].score+'% average exam score','students','blue']].map(([label,name,detail,key,color])=><article className={'erp-spotlight '+color} key={key}><small>{label}</small><h2>{name||'—'}</h2><p>{detail}</p><button onClick={()=>go(key,false,key==='students'&&scores[0]?{id:scores[0].id,name:scores[0].name}:undefined)}>View {key}</button></article>)}</div>
+      <Spotlights teachers={data.teachers ?? []} students={students} scores={scores} groups={groups} go={go} />
       <Card section="Capacity" title="Class-Wise Distribution" footer={action('classes','View classes')}><strong className="big-number">{number(students.length)}</strong><p className="muted">Total students enrolled</p>
         {groups.map((row,i)=><Bar key={row._id} label={row.name+' · '+row.section} value={ratio(row.students.length,students.length)} meta={number(row.students.length)+' · '+ratio(row.students.length,students.length)+'%'} color={palette[i%5]}/>)}
         <Stats items={[[ 'Sections',classes.length],['Avg. class size',classes.length?Math.round(students.length/classes.length):0]]}/></Card>
