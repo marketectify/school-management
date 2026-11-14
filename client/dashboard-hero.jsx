@@ -25,6 +25,10 @@ const paths = {
   bell:'M4 17h16l-2-3V9a6 6 0 0 0-12 0v5zm6 3h4',
   bus:'M4 5h16a1 1 0 0 1 1 1v11H3V6a1 1 0 0 1 1-1zm-1 6h18M7 17v3m10-3v3m-10-6h1m8 0h1',
   megaphone:'m3 10 16-5v14L3 15zm4 6 2 5m13-12v5',
+  up:'M12 20V4m-6 6 6-6 6 6',
+  down:'M12 4v16m-6-6 6 6 6-6',
+  minus:'M5 12h14',
+  trophy:'M8 16h8m-4-4v4m-4-9H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4M8 4h8v4a4 4 0 0 1-8 0V4Zm0 16h8',
   plus:'M12 6v12m-6-6h12M3 3h18v18H3z',
 };
 
