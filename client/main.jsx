@@ -6,6 +6,7 @@ import './upgrade.css';
 import Dashboard from './dashboard.jsx';
 import TopBar from './topbar.jsx';
 import { SidebarMenu, ModuleInfo } from './sidebar.jsx';
+import ParentDashboard from './parent-dashboard.jsx';
 import { ActivityPage, Inbox, RoleDashboard } from './portal.jsx';
 import StudentDashboard from './student-dashboard.jsx';
 import TeacherDashboard from './teacher-dashboard.jsx';
@@ -342,7 +343,7 @@ function Workspace({ user, onLogout }) {
         years={years} layout={layout} setLayout={setDisplay} nav={nav} setNav={setNav} logout={logout} school={school} refresh={refresh} menuRequest={topRequest} />
       <main className="content">{error && <p className="error" role="alert">{error}</p>}
         {view.key === 'dashboard' || view.key.startsWith('preview-') ? <>
-          <div hidden={user.role === "admin" && view.key === "dashboard"}><p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
+          <div hidden={(user.role === "admin" && view.key === "dashboard") || user.role === "parent" || view.key === "preview-parent"}><p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
           <div className="title dashboard-heading"><h1 className="capitalize">{view.key.startsWith('preview-') ? view.key.slice(8) : user.role} Dashboard</h1>
             <div className="actions" hidden={user.role === "admin" && view.key === "dashboard"}><button onClick={dashboard.reload}>Refresh</button><button onClick={() => window.print()}>Print / PDF</button>
             {user.role === 'admin' && <button className="primary" onClick={() => go('students',true)}>＋ Add Student</button>}</div></div>
@@ -352,6 +353,7 @@ function Workspace({ user, onLogout }) {
             ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} years={years} schoolName={campus?.name ?? "Global International"} onYear={value => { setYear(value); localStorage.setItem("school-year", value); }} refresh={dashboard.reload} />
             : user.role === 'teacher' || view.key === 'preview-teacher' ? <TeacherDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
             : user.role === 'student' || view.key === 'preview-student' ? <StudentDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
+            : user.role === 'parent' || view.key === 'preview-parent' ? <ParentDashboard key={school + view.key} user={user} year={year} go={go} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
         </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : view.key === 'messages' ? <Inbox key={view.revision} user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
         : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
