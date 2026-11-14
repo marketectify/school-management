@@ -27,8 +27,14 @@ const groups = [
 ];
 
 async function seed() {
+  const iso = date => [date.getFullYear(), date.getMonth()+1, date.getDate()].map(value => String(value).padStart(2,'0')).join('-');
+  const now = new Date();
+  const after = days => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate()+days));
+  const academicToday = after(0);
   const owner = await User.findOne({ email: process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase(), role: 'admin' });
   if (owner) {
+    await add('calendar',owner.id+'/faculty-meeting', {ownerId: owner._id,name:'Faculty Planning Meeting',date:after(1),start:'15:00',notes:'Conference hall · upcoming assessments'});
+    await add('achievements',owner.id+'/professional-learning', {ownerId: owner._id,name:'Classroom assessment workshop',category:'Courses',date:academicToday,notes:'Demo workshop participation.'});
     await add('tickets', owner.id + '/projector', { ownerId: owner._id, name: 'Classroom projector check', body: 'Check the projector before the open day.', status: 'Open' });
     await add('files', owner.id + '/calendar', { ownerId: owner._id, name: 'School calendar reference', link: 'https://example.com/', notes: 'Replace with your published school document.' });
     const ownerId = owner._id;
@@ -45,8 +51,12 @@ async function seed() {
     const subjectId = await add('subjects', key, { name: group.subject, code: group.code, classId });
     await add('timetable', key, { name: 'Period ' + (group.grade - 5), classId, subjectId, teacherId,
       day: 'Monday', start: '09:00', end: '09:45', room: group.room });
-    await add('homework', key, { name: group.homework, classId, subjectId,
+    for (const day of ['Tuesday','Wednesday','Thursday','Friday','Saturday']) {
+      await add('timetable', key+'/'+day, {name: group.subject+' lesson',classId,subjectId,teacherId,day,start:'09:00',end:'09:45',room:group.room});
+    }
+    const homeworkId = await add('homework', key, { name: group.homework, classId, subjectId,
       due: '2026-11-23', instructions: 'Complete the assignment and bring it to the next lesson.' });
+    await add('exams',key+'/upcoming', {name:group.subject+' Assessment',classId,subjectId,date:after(5),maximum:100});
     const examId = await add('exams', key, { name: group.subject + ' Midterm', classId, subjectId,
       date: '2026-11-06', maximum: 100 });
     for (const [index, name] of group.students.entries()) {
@@ -58,6 +68,9 @@ async function seed() {
         await add('attendance', admission + '/' + date, { studentId, date, status, notes: 'Demo attendance.' }, { studentId, date });
       }
       await add('results', admission, { studentId, examId, marks: 91 - index * 7, notes: 'Demo midterm result.' }, { studentId, examId });
+      if (index < 3) await add('submissions',admission,{homeworkId,studentId,date:academicToday,status:index===0?'Graded':'Submitted',notes:'Demo submission.'});
+      if (index === 1) await add('leaves',admission,{studentId,date:after(3),status:'Pending',reason:'Medical appointment'});
+      await add('attendance',admission+'/'+academicToday,{studentId,date:academicToday,status:index===3?'Absent':'Present',notes:'Demo attendance.'},{studentId,date:academicToday});
       const feeId = await add('fees', admission, { name: 'November tuition', studentId, amount: 5000, due: '2026-11-25' });
       await add('invoices', admission, { name: 'November tuition invoice', studentId, amount: 5000,
         due: '2026-11-25', status: index < 2 ? 'Paid' : 'Issued' });
