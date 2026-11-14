@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { api } from './api.js';
 import './admin-dashboard.css';
 
@@ -22,23 +22,35 @@ function Bar({ label,value, meta,color = palette[0] }) {
   return <div className="erp-bar"><div><span>{label}</span><strong>{meta ?? value + '%'}</strong></div><span className="erp-track"><i style={{width: Math.min(100,value)+'%',background:color}}/></span></div>;
 }
 function Ring({ value,label,color=palette[0] }) {
-  return <div className="erp-ring-wrap"><div className="ring" style={{background:'conic-gradient('+color+' '+Math.min(100,value)+'%,var(--line) 0)'}}><strong>{value}%</strong></div><small>{label}</small></div>;
+  return <div className="erp-ring-wrap"><div className="ring" style={{background:'conic-gradient('+color+' '+Math.min(100,value)+'%,var(--line) 0)'}}><strong>{value}%</strong></div>{label && <small>{label}</small>}</div>;
 }
 function Plot({ labels, series, type = 'line', label }) {
+  const id = useId();
+  const [selected,setSelected] = useState(null);
+  const color = index => type === 'bar' && index === 1 ? '#0ba77f' : palette[index];
+  const scaleFor = index => type === 'bar' ? Math.max(1,...series[index].values) : max;
   const max = Math.max(1,...series.flatMap(s=>s.values));
+  const curve = points => points.map(([px,py],i) => {
+    if (!i) return 'M'+px+','+py;
+    const [previousX,previousY]=points[i-1];
+    const middle=(previousX+px)/2;
+    return 'C'+middle+','+previousY+' '+middle+','+py+' '+px+','+py;
+  }).join(' ');
   const width=620,height=200,left=44,right=16,top=14,bottom=34;
   const x=i=>left+(width-left-right)*(i+.5)/Math.max(labels.length,1);
-  const y=v=>height-bottom-(height-bottom-top)*v/max;
-  return <><div className="erp-legend">{series.map((s,i)=><span key={s.name}><i style={{background:palette[i]}}/>{s.name}</span>)}</div>
+  const y=(v,index=0)=>height-bottom-(height-bottom-top)*v/(type==='bar'?scaleFor(index):max);
+  return <><div className="erp-legend">{series.map((s,i)=><span key={s.name}><i style={{background:color(i)}}/>{s.name}</span>)}</div>
     <svg viewBox="0 0 620 200" className="erp-plot" role="img" aria-label={label}>
-    {[0,.25,.5,.75,1].map(p=><g key={p}><line x1={left} x2={width-right} y1={y(p*max)} y2={y(p*max)}/><text x={left-5} y={y(p*max)+4} textAnchor="end">{number(Math.round(p*max))}</text></g>)}
-    {series.map((s,index)=>{ const points=s.values.map((v,i)=>[x(i),y(v)]); return <g key={s.name}>
-      {type==='bar' && index===0 ? s.values.map((v,i)=><rect key={i} x={x(i)-12} y={y(v)} width="24" height={y(0)-y(v)} rx="3" fill={palette[index]}><title>{labels[i]}: {number(v)} {s.name}</title></rect>) : <>
-        {type==='area' && points.length>0 && <polygon points={[[points[0][0],y(0)],...points,[points.at(-1)[0],y(0)]].map(p=>p.join(',')).join(' ')} fill={palette[index]} opacity=".12"/>}
-        <polyline points={points.map(p=>p.join(',')).join(' ')} fill="none" stroke={palette[index]} strokeWidth="2.5"/>
-        {points.map(([px,py],i)=><circle key={i} cx={px} cy={py} r="4" fill={palette[index]}><title>{labels[i]}: {number(s.values[i])} {s.name}</title></circle>)}</>}
+    <defs>{series.map((s,i)=><linearGradient key={s.name} id={id+i} x2="0%" y2="100%"><stop stopColor={color(i)} stopOpacity=".56"/><stop offset="100%" stopColor={color(i)} stopOpacity=".03"/></linearGradient>)}</defs>
+    {[0,.25,.5,.75,1].map(p=><g key={p}><line x1={left} x2={width-right} y1={y(p*max)} y2={y(p*max)}/><text x={left-5} y={y(p*max)+4} textAnchor="end">{number(Math.round(p*(type==='bar'?scaleFor(0):max)))}</text></g>)}
+    {series.map((s,index)=>{ const points=s.values.map((v,i)=>[x(i),y(v,index)]); return <g key={s.name}>
+      {type==='bar' && index===0 ? s.values.map((v,i)=><rect key={i} x={x(i)-19} y={y(v)} width="38" height={y(0)-y(v)} rx="3" fill={palette[index]}><title>{labels[i]}: {number(v)} {s.name}</title></rect>) : <>
+        {type==='area' && points.length>0 && <path d={curve(points)+' L'+points.at(-1)[0]+','+y(0)+' L'+points[0][0]+','+y(0)+' Z'} fill={'url(#'+id+index+')'}/>}
+        <path d={curve(points)} fill="none" stroke={color(index)} strokeWidth="3"/>
+        {points.map(([px,py],i)=><circle key={i} cx={px} cy={py} r="4" fill={color(index)} stroke="var(--surface)" strokeWidth="1.4"><title>{labels[i]}: {number(s.values[i])} {s.name}</title></circle>)}</>}
     </g>})}
-    {labels.map((label,i)=><text key={i} x={x(i)} y={height-11} textAnchor="middle">{label}</text>)}</svg></>;
+    {selected !== null && labels[selected] && <line x1={x(selected)} x2={x(selected)} y1={top} y2={y(0)} />}{labels.map((label,i)=><text key={i} x={x(i)} y={height-11} textAnchor="middle">{label}</text>)}</svg><div className="erp-plot-points">{labels.map((label,i)=><button key={i} onFocus={()=>setSelected(i)} onMouseEnter={()=>setSelected(i)} onClick={()=>setSelected(i)} aria-label={label}>{label}</button>)}</div>
+    {selected!==null && labels[selected] && <div className="erp-chart-readout"><strong>{labels[selected]}</strong>{series.map(s=><span key={s.name}>{s.name}: {number(s.values[selected])}</span>)}</div>}</>;
 }
 function Scatter({ scores }) {
   return <svg viewBox="0 0 360 176" className="erp-plot" role="img" aria-label="Exam score versus attendance">
@@ -109,6 +121,7 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
   const categories=[...new Set(books.map(row=>row.category||'Other'))].map(name=>[name,sum(books.filter(row=>(row.category||'Other')===name),'copies')]).sort((a,b)=>b[1]-a[1]);
   const copies=sum(books,'copies'), issued=allLoans.filter(row=>row.status==='Issued').length, reserved=allLoans.filter(row=>row.status==='Reserved').length;
   const available=Math.max(0,copies-issued-reserved);
+  const routes=new Map((data?.transport??[]).map(route=>[route._id,route]));
   const fleetDays=[...new Set(fleet.map(row=>row.date))].sort().slice(-7);
   const recentVehicles=[...new Map([...fleet].sort((a,b)=>a.date.localeCompare(b.date)).map(row=>[row.routeId,row])).values()];
   const metrics=[['Attendance rate',ratio(attendance.filter(valid).length,attendance.length)+'%','attendance','✓'],['New admissions',number(admissions.length),'admissions','♙'],['Fees collected',number(sum(payments,'amount')),'payments','＄'],['Upcoming exams',number(exams.filter(row=>row.date>=todayKey).length),'exams','▤']];
@@ -142,8 +155,9 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
         {days.length ? <div className="erp-heat-scroll"><table className="erp-heat"><thead><tr><th>Class</th>{days.map(d=><th key={d}>{new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',day:'numeric'})}</th>)}</tr></thead>
           <tbody>{groups.map(row=><tr key={row._id}><th>{row.name} · {row.section}</th>{days.map(d=>{const entries=attendance.filter(a=>a.date===d&&row.students.some(s=>s._id===a.studentId));const pct=ratio(entries.filter(valid).length,entries.length);return <td key={d}><button onClick={()=>go('attendance',false,{date:d,classId:row._id})} title={entries.length?pct+'% present':'No entries'} style={{background:entries.length?['#dce3fa','#adb9f0','#8394e7','#4059dc'][pct>=95?3:pct>=90?2:pct>=85?1:0]:'var(--line)'}}>{entries.length?pct+'%':'—'}</button></td>;})}</tr>)}</tbody></table></div> : <p className="muted">No attendance for this period.</p>}
         <div className="erp-legend">{['Below 85%','85–89%','90–94%','95% and above'].map((l,i)=><span key={l}><i style={{background:['#dce3fa','#adb9f0','#8394e7','#4059dc'][i]}}/>{l}</span>)}</div></Card>
-      <Card section="Attendance" title="Attendance Breakdown"><Ring value={ratio(attendance.filter(valid).length,attendance.length)} label="Attendance rate" color="#18b833"/>
-        <Stats items={['Present','Absent','On leave','Late'].map(status=>[status,attendance.filter(row=>row.status===status).length])}/></Card>
+      <Card section="Attendance" title="Attendance Breakdown"><div className="erp-summary"><Ring value={ratio(attendance.filter(valid).length,attendance.length)} color="#18b833"/><div><strong className="big-number">{number(attendance.filter(valid).length)}</strong> / {number(attendance.length)}<p className="muted">Present or late</p></div></div>
+        <Stats items={['Present','Absent','On leave','Late'].map(status=>[status,attendance.filter(row=>row.status===status).length])}/>
+        <div className="erp-subhead">By class</div>{groups.map((group,i)=>{const entries=attendance.filter(row=>group.students.some(student=>student._id===row.studentId));return <Bar key={group._id} label={group.name} value={ratio(entries.filter(valid).length,entries.length)} color={palette[(i+2)%3]}/>;})}</Card>
       <Card section="Engagement" title="Weekly Communication Trend" wide footer={action('delivery','Delivery logs')}><strong className="big-number">{number(week.reduce((n,d)=>n+sum(deliveries.filter(row=>row.date===d),'delivered'),0))}</strong><p className="muted">Delivered in the last 7 days</p>
         <Plot type="area" label="Weekly communication trend" labels={week.map(d=>d.slice(5))} series={channels.map(name=>({name,values:week.map(d=>sum(deliveries.filter(row=>row.channel===name&&row.date===d),'delivered'))}))}/></Card>
       <Card section="Reach" title="Parent Engagement" footer={action('accounts','View accounts')}><Ring value={ratio(activeParents,parents.length)} label="Parents who sent a message"/>
@@ -166,15 +180,27 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
       <Card section="Inventory" title="Book Availability" footer={action('library','Library catalogue')}><Ring value={ratio(available,copies)} label={number(available)+' of '+number(copies)+' copies available'}/>
         <Stats items={[[ 'Issued',issued],['Reserved',reserved],['Low stock titles',books.filter(b=>b.copies-allLoans.filter(l=>l.bookId===b._id&&l.status!=='Returned').length<=2).length]]}/>
         {categories.map(([name,total],i)=>{const ids=new Set(books.filter(row=>(row.category||'Other')===name).map(row=>row._id));return <Bar key={name} label={name} value={ratio(Math.max(0,total-allLoans.filter(row=>ids.has(row.bookId)&&row.status!=='Returned').length),total)} color={palette[i%5]}/>;})}</Card>
-      <Card section="Trending" title="Most Borrowed Books" wide footer={action('loans','Full report')}><div>{books.map(book=>({...book,issues:loans.filter(row=>row.bookId===book._id&&row.status!=='Reserved').length})).filter(book=>book.issues).sort((a,b)=>b.issues-a.issues).slice(0,5).map((book,i)=><div className="erp-list-row" key={book._id}><i>{i+1}</i><div><strong>{book.name}</strong><small>{book.category||'Other'} · {book.author}</small></div><strong>{book.issues} issues</strong></div>)}</div></Card>
-      <Card section="Categories" title="Popular Categories"><div className="erp-bubbles">{categories.slice(0,5).map(([name,total],i)=><span key={name} style={{background:palette[i],width:56-i*5}} title={name}>{ratio(total,copies)}%</span>)}</div>
+      <Card section="Trending" title="Most Borrowed Books" wide footer={action('loans','Full report')}><div>{books.map(book=>({...book,issues:loans.filter(row=>row.bookId===book._id&&row.status!=='Reserved').length})).filter(book=>book.issues).sort((a,b)=>b.issues-a.issues).slice(0,5).map((book,i)=><div className="erp-list-row" key={book._id}><span className="erp-rank">{i+1}</span><i className="erp-book-icon" style={{"--book":palette[i%5]}}>▤</i><div><strong>{book.name}</strong><small>{book.category||'Other'} · {book.author}</small></div><div className="erp-issue-count"><strong>{book.issues}</strong> issues<span className="erp-track"><i style={{width:Math.min(book.issues*10,100)+"%",background:palette[i%5]}}/></span></div></div>)}</div></Card>
+      <Card section="Categories" title="Popular Categories"><div className="erp-bubbles">{categories.slice(0,5).map(([name,total],i)=><span key={name} style={{background:palette[i],width:56-i*5}} title={name}><strong>{ratio(total,copies)}%</strong><small>{name}</small></span>)}</div>
         {categories.map(([name,total],i)=><Bar key={name} label={name} value={ratio(total,copies)} meta={number(total)+' copies'} color={palette[i%5]}/>)}
         <Stats items={[[ 'Active readers',new Set(loans.filter(l=>l.status!=='Reserved').map(l=>l.studentId)).size],['Total borrowed',loans.filter(l=>l.status!=='Reserved').length]]}/></Card>
       <Card section="Operations" title="Fuel Consumption Trend" wide footer={action('fleet','Fleet logs')}><Stats items={[[ 'Fuel',number(sum(fleet,'fuel'))+' L'],['Avg. per logged route',number(Math.round(sum(fleet,'fuel')/Math.max(1,new Set(fleet.map(r=>r.routeId)).size)))+' L'],['Cost',number(sum(fleet,'cost'))]]}/>
-        <Plot type="bar" label="Fuel consumption trend" labels={fleetDays.map(d=>d.slice(5))} series={[{name:'Fuel (L)',values:fleetDays.map(d=>sum(fleet.filter(row=>row.date===d),'fuel'))},{name:'Distance (km)',values:fleetDays.map(d=>sum(fleet.filter(row=>row.date===d),'distance'))}]}/></Card>
+        <Plot type="bar" label="Fuel consumption trend" labels={fleetDays.map(d=>d.slice(5))} series={[{name:'Fuel (L)',values:fleetDays.map(d=>sum(fleet.filter(row=>row.date===d),'fuel'))},{name:'Efficiency (km/L)',values:fleetDays.map(d=>{const rows=fleet.filter(row=>row.date===d);return sum(rows,'fuel')?Math.round(sum(rows,'distance')/sum(rows,'fuel')*10)/10:0;})}]}/></Card>
       <Card section="Fleet" title="Fleet Utilization" footer={action('transport','View routes')}><Stats items={[[ 'Active routes',recentVehicles.filter(row=>row.status==='Active').length],['Trips',number(sum(fleet,'trips'))],['Distance',number(sum(fleet,'distance'))+' km']]}/>
         <div className="erp-ring-row"><Ring value={ratio(recentVehicles.filter(r=>r.status==='Active').length,recentVehicles.length)} label="Active" color="#18b833"/><Ring value={ratio(sum(fleet,'riders'),sum(fleet,'seats'))} label="Occupancy"/><Ring value={ratio(sum(fleet,'onTime'),sum(fleet,'trips'))} label="On-time" color={palette[1]}/></div>
         {['Active','Idle','Service','Offline'].map((status,i)=><Bar key={status} label={status} value={ratio(recentVehicles.filter(r=>r.status===status).length,recentVehicles.length)} color={palette[i]}/>)}</Card>
+      <Card section="Operations" title="Route Status" footer={action('fleet','Open fleet logs')}>{recentVehicles.length ? recentVehicles.map((row,i)=><article className="erp-route" key={row.routeId} style={{'--route':palette[(i+2)%5]}}>
+        <div className="erp-route-heading"><strong>{routes.get(row.routeId)?.name ?? 'Route'}</strong><span className="pill">{row.status}</span></div>
+        <p className="muted">{routes.get(row.routeId)?.driver ?? 'Driver unassigned'} · {row.date}</p>
+        <Stats items={[[ 'Onboard',row.riders],['Trips',row.trips],['Distance',number(row.distance)+' km']]}/>
+      </article>) : <p className="muted">No route logs in this period.</p>}</Card>
+      <Card section="Schedule" title="Maintenance Timeline" footer={action('fleet','Fleet logs')}>{fleet.filter(row=>row.status==='Service').length ?
+        fleet.filter(row=>row.status==='Service').slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(row=><div className="erp-list-row" key={row._id}><i>⚙</i><div><strong>{routes.get(row.routeId)?.vehicle ?? 'Vehicle'}</strong><small>Service log</small></div><strong>{row.date}</strong></div>)
+        : <p className="muted">No maintenance logs in this period.</p>}</Card>
+      <Card section="Tracking" title="Fleet Route Directory" footer={action('transport','Manage routes')}>
+        {[...routes.values()].map(route=><div className="erp-list-row" key={route._id}><i>↗</i><div><strong>{route.name}</strong><small>{route.stops}</small></div><span className="pill">{route.vehicle}</span></div>)}
+        {!routes.size && <p className="muted">No routes added.</p>}
+      </Card>
     </div></>}
   </div>;
 }
