@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { api } from './api.js';
 import './admin-dashboard.css';
 import './admin-masthead.css';
+import { DashboardIcon } from './dashboard-hero.jsx';
 import Spotlights from './spotlight.jsx';
 
 const palette = ['#4059dc', '#126bce', '#24ba49', '#efb500', '#7714d9'];
@@ -126,7 +127,21 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
   const routes=new Map((data?.transport??[]).map(route=>[route._id,route]));
   const fleetDays=[...new Set(fleet.map(row=>row.date))].sort().slice(-7);
   const recentVehicles=[...new Map([...fleet].sort((a,b)=>a.date.localeCompare(b.date)).map(row=>[row.routeId,row])).values()];
-  const metrics=[[period==='today'?"Today's Attendance":'Attendance Rate',ratio(attendance.filter(valid).length,attendance.length)+'%','attendance','✓'],['New admissions',number(admissions.length),'admissions','♙'],[period==='today'?'Fees Today':'Fees Collected',number(sum(payments,'amount')),'payments','＄'],['Upcoming exams',number(exams.filter(row=>row.date>=todayKey).length),'exams','▤']];
+  const previousDay=day(shift(today,-1));
+  const dayAttendance=key=>(data?.attendance??[]).filter(row=>row.date===key&&studentIds.has(row.studentId));
+  const todayAttendance=dayAttendance(todayKey);
+  const yesterdayAttendance=dayAttendance(previousDay);
+  const attendanceDelta=todayAttendance.length&&yesterdayAttendance.length
+    ? Math.round(10*(ratio(todayAttendance.filter(valid).length,todayAttendance.length)-ratio(yesterdayAttendance.filter(valid).length,yesterdayAttendance.length)))/10 : null;
+  const upcomingExams=exams.filter(row=>row.date>=todayKey).sort((a,b)=>a.date.localeCompare(b.date));
+  const daysToExam=upcomingExams.length?Math.round((Date.parse(upcomingExams[0].date)-Date.parse(todayKey))/86400000):null;
+  const feesToday=sum((data?.payments??[]).filter(row=>row.date===todayKey&&fees.has(row.feeId)),'amount');
+  const metrics=[
+    ["Today's Attendance",todayAttendance.length?ratio(todayAttendance.filter(valid).length,todayAttendance.length)+'%':'—','attendance','check',attendanceDelta===null?null:(attendanceDelta>0?'+':'')+attendanceDelta+'%',attendanceDelta!==null&&attendanceDelta<0?'red':'green'],
+    ['New Admissions',number(admissions.length),'admissions','users'],
+    ['Fees Today',Intl.NumberFormat(undefined,{notation:feesToday>=10000?'compact':'standard',maximumFractionDigits:1}).format(feesToday),'payments','money'],
+    ['Upcoming Exams',String(upcomingExams.length).padStart(2,'0'),'exams','file',daysToExam===null?null:daysToExam===0?'Today':daysToExam+'d','red'],
+  ];
   const exportCSV=()=>{
     const blob=new Blob(['Metric,Value\r\n'+metrics.map(([label,value])=>label+',"'+value+'"').join('\r\n')],{type:'text/csv'});
     const url=URL.createObjectURL(blob), link=document.createElement('a');
@@ -142,9 +157,12 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
       </div></div>
     {error && <p className="error" role="alert">{error}</p>}
     {!data ? <p role="status">{error?'Dashboard data unavailable.':'Loading dashboard…'}</p> : <>
-    <section className="panel erp-overview admin-overview"><div><div className="erp-greeting"><i aria-hidden="true">♧</i><div><h2>Good {today.getHours()<12?'Morning':today.getHours()<18?'Afternoon':'Evening'}, Administrator</h2><small><b>{schoolName}</b> · {today.toLocaleDateString(undefined,{dateStyle:'medium'})}{year&&' · '+year}</small></div></div>
-      <div className="actions"><button className="primary" onClick={()=>go('admissions',true)}>⊕ New Admission</button><button onClick={()=>go('payments',true)}>Collect Fees</button><button onClick={exportCSV}>Report</button></div></div>
-      <div className="erp-metrics">{metrics.map(([label,value,key,icon],i)=><button key={key} onClick={()=>go(key)}><i style={{color:palette[i]}}>{icon}</i><strong>{value}</strong><small>{label}</small></button>)}</div></section>
+    <section className="panel erp-overview admin-overview"><div><div className="erp-greeting"><i><DashboardIcon name="cap"/></i><div><h2>Good {today.getHours()<12?'Morning':today.getHours()<18?'Afternoon':'Evening'}, Administrator</h2><small><b>{schoolName}</b> · {today.toLocaleDateString(undefined,{dateStyle:'medium'})}{year&&' · '+year}</small></div></div>
+      <div className="actions"><button className="primary" onClick={()=>go('admissions',true)}><DashboardIcon name="plus"/> New Admission</button><button onClick={()=>go('payments',true)}><DashboardIcon name="clipboard"/> Collect Fees</button><button onClick={exportCSV}><DashboardIcon name="file"/> Report</button></div></div>
+      <div className="erp-metrics">{metrics.map(([label,value,key,icon,indicator,tone],i)=><button key={key} onClick={()=>go(key,false,key==='attendance'||key==='payments'?{date:todayKey}:undefined)}>
+        <span className="admin-kpi-head"><i style={{color:['#18b833','#4059dc','#ad7700','#5708ec'][i]}}><DashboardIcon name={icon}/></i>
+        {indicator&&<span className={'admin-kpi-indicator '+tone}><DashboardIcon name={key==='exams'?'time':'arrow'}/>{indicator}</span>}</span>
+        <strong>{value}</strong><small>{label}</small></button>)}</div></section>
     <div className="erp-grid">
       <Spotlights teachers={data.teachers ?? []} students={students} scores={scores} groups={groups} go={go} />
       <Card section="Capacity" title="Class-Wise Distribution" footer={action('classes','View classes')}><strong className="big-number">{number(students.length)}</strong><p className="muted">Total students enrolled</p>

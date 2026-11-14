@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import './teacher-dashboard.css';
+import { DashboardIcon, HeroAvatar, HeroClock, HeroMetric, HeroTag } from './dashboard-hero.jsx';
 
 const modules = ['teachers','classes','subjects','students','timetable','attendance','homework','submissions','exams','results','leaves','sessions','calendar','announcements','achievements'];
 const weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -169,22 +170,32 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
   return <div className="td-root">
     {error&&<p className="error" role="alert">{error}</p>}
     {status&&<p className="td-confirm" role="status">{status}</p>}
-    <section className="panel td-hero">
-      <div className="td-hero-head"><div className="td-person"><span className="td-avatar">{(teacher?.name??user.name).split(' ').slice(0,2).map(word=>word[0]).join('')}</span>
-        <div><small className="td-greeting">Good {now.getHours()<12?'morning':now.getHours()<18?'afternoon':'evening'}</small><h2>{teacher?.name??user.name}</h2>
-          <div className="td-person-tags">{teacher&&<Badge>{teacher.department}</Badge>}<Badge>Teacher</Badge><Badge>{classes.length} assigned classes</Badge></div>
+    <section className="panel td-hero dashboard-person-hero teacher-person-hero">
+      <div className="td-hero-head"><div className="td-person">
+        <HeroAvatar kind="teacher" name={teacher?.name??user.name} demo={/^demo\.teacher\d+@example\.com$/i.test(teacher?.email??'')}/>
+        <div><small className="td-greeting">Good {now.getHours()<12?'morning':now.getHours()<18?'afternoon':'evening'} 👋</small><h2>{teacher?.name??user.name}</h2>
+          <div className="td-person-tags">
+            {teacher?.employeeId&&<HeroTag icon="badge">{teacher.employeeId}</HeroTag>}
+            {teacher?.department&&<HeroTag icon="house">{teacher.department}</HeroTag>}
+            <HeroTag icon="medal">{teacher?.designation??'Teacher'}</HeroTag>
+            {teacher?.homeroom?<HeroTag icon="cap">{teacher.homeroom}</HeroTag>:<HeroTag icon="cap">{classes.length} assigned classes</HeroTag>}
+          </div>
         </div></div>
-        <div className="td-time"><strong>{now.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</strong><small>{now.toLocaleDateString(undefined,{dateStyle:'full'})}</small>
-          {user.role==='admin'&&<label>Preview teacher<select value={teacher?._id??''} onChange={event=>setTeacherId(event.target.value)}>{teachers.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label>}</div></div>
+        <HeroClock now={now}/>
+      </div>
+      {user.role==='admin'&&<label className="dashboard-preview-picker">Preview teacher<select value={teacher?._id??''} onChange={event=>setTeacherId(event.target.value)}>{teachers.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label>}
       {!teacher&&<Empty>Link this login to a teacher record using the same email, then assign timetable periods.</Empty>}
-      <Metrics compact items={[
-        ["Today's Schedule",schedule.length,'calendar','blue'],['Teaching Hours',span(scheduledMinutes),'time','sky'],['Upcoming Classes',upcoming.length,'class','gold'],
-        ['Attendance Today',percent(pct(todaysAttendance.filter(present).length,todaysAttendance.length)),'attendance','green'],
-        ['Profile Completion',percent(profilePct),'students','cyan',goTo('profile')],['Teaching Insights',percent(averageMarks),'insights','purple',()=>setReport(true)],
-      ]}/>
-      <div className="td-quick"><small>ϟ Quick actions:</small>{quick.map(([label,icon,run],i)=><button key={label} className={i===0?'primary':''}
-        disabled={busy||(i===1&&!schedule.some(row=>sessionFor(row._id)?.status!=='Done'))} onClick={run}><span aria-hidden="true">{glyph[icon]}</span> {label}</button>)}
-        <button aria-expanded={more} onClick={()=>setMore(!more)}>⊞ More Actions</button>
+      <div className="td-metrics td-compact dashboard-hero-metrics">
+        <HeroMetric name="Today's Schedule" value={schedule.length} icon="calendar" tone="blue"/>
+        <HeroMetric name="Teaching Hours" value={span(scheduledMinutes)} icon="time" tone="sky"/>
+        <HeroMetric name="Upcoming Classes" value={upcoming.length} icon="arrow" tone="gold"/>
+        <HeroMetric name="Attendance Today" value={percent(pct(todaysAttendance.filter(present).length,todaysAttendance.length))} icon="users" tone="green"/>
+        <HeroMetric name="Profile Completion" value={percent(profilePct)} progress={profilePct} icon="badge" tone="cyan" run={goTo('profile')}/>
+        <HeroMetric name="Teaching Insights" value={percent(averageMarks)} icon="sparkle" tone="purple" run={()=>setReport(true)}/>
+      </div>
+      <div className="td-quick dashboard-quick"><small>ϟ Quick actions:</small>{quick.map(([label,,run],i)=><button key={label} className={i===0?'primary':''}
+        disabled={busy||(i===1&&!schedule.some(row=>sessionFor(row._id)?.status!=='Done'))} onClick={run}><DashboardIcon name={['clipboard','play','file','grid','calendar','megaphone'][i]}/> {label}</button>)}
+        <button aria-expanded={more} onClick={()=>setMore(!more)}><DashboardIcon name="grid"/> More Actions</button>
         {more&&<div className="td-more">{[['Submissions','submissions'],['Leave Requests','leaves'],['Achievements','achievements'],['Study Materials','files'],['Class Sessions','sessions']].map(([label,key])=><button key={key} onClick={goTo(key)}>{label}</button>)}</div>}
       </div>
     </section>

@@ -12,3 +12,21 @@
 .admin-overview .erp-metrics small{line-height:1.25}
 @media(max-width:1160px){.erp-overview.admin-overview{grid-template-columns:1fr}}
 @media(max-width:600px){.admin-overview .erp-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-masthead .actions>button,.admin-masthead select,.admin-masthead summary{padding-inline:9px}}
+
+.erp-overview.admin-overview{grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:24px;padding:25px 28px}
+.admin-overview .erp-greeting{align-items:center;gap:20px;margin-bottom:20px}
+.admin-overview .erp-greeting i{flex:none;width:79px;height:79px;border-radius:17px;background:linear-gradient(135deg,#3e57df,#6c86f7)}
+.admin-overview .erp-greeting i svg{width:35px;height:35px}
+.admin-overview .erp-greeting h2{margin-bottom:7px}.admin-overview .erp-greeting small{font-size:.94rem}
+.admin-overview .actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:49px}
+.admin-overview .actions svg{width:19px;height:19px}
+.admin-overview .erp-metrics{gap:clamp(8px,1.2vw,20px)}
+.admin-overview .erp-metrics button{min-height:144px;align-content:start;gap:6px;padding:14px 15px;border-radius:15px}
+.admin-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:3px;margin-bottom:4px}
+.admin-overview .erp-metrics i{flex:none;width:51px;height:51px;margin:0;border-radius:14px}
+.admin-overview .erp-metrics i svg{width:23px;height:23px}
+.admin-kpi-indicator{display:inline-flex;align-items:center;gap:2px;color:#138b34;font-size:.77rem;font-weight:750;white-space:nowrap}
+.admin-kpi-indicator.red{color:#e4254b}.admin-kpi-indicator svg{width:12px;height:12px}
+.admin-overview .erp-metrics strong{font-size:1.45rem}.admin-overview .erp-metrics small{font-size:.85rem}
+@media (max-width:1250px){.erp-overview.admin-overview{grid-template-columns:1fr}.admin-overview .erp-metrics button{min-height:125px}}
+@media (max-width:600px){.erp-overview.admin-overview{padding:16px}.admin-overview .erp-greeting i{width:56px;height:56px}.admin-overview .erp-greeting i svg{width:26px;height:26px}}
