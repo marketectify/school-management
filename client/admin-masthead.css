@@ -1,0 +1,14 @@
+.erp-heading.admin-masthead{margin-bottom:29px;gap:15px}
+.admin-masthead h1{font-size:clamp(1.9rem,2.75vw,2.52rem);letter-spacing:-.038em}
+.admin-masthead .breadcrumbs{font-size:.96rem}
+.admin-masthead .actions>button,.admin-masthead select,.admin-masthead summary,.admin-overview .actions button{min-height:46px;border-radius:12px;padding:10px 15px;box-shadow:0 2px 0 #293c7120,0 5px 12px #2033550b}
+.admin-masthead summary.primary,.admin-overview .actions .primary{box-shadow:0 2px 0 #22369f,0 5px 13px #4355c638;font-weight:650}
+.erp-overview.admin-overview{display:grid;grid-template-columns:minmax(295px,.72fr) minmax(0,1fr);gap:24px;margin-bottom:clamp(18px,2vw,30px)}
+.admin-overview .erp-greeting i{width:clamp(55px,5vw,79px);height:clamp(55px,5vw,79px);font-size:1.65rem}
+.admin-overview .erp-greeting h2{font-size:clamp(1.15rem,1.75vw,1.75rem)}
+.admin-overview .erp-metrics{min-width:0;grid-template-columns:repeat(4,minmax(0,1fr))}
+.admin-overview .erp-metrics button{min-height:125px;align-content:start;padding:14px 12px;gap:5px}
+.admin-overview .erp-metrics i{width:42px;height:42px;margin-bottom:4px}
+.admin-overview .erp-metrics small{line-height:1.25}
+@media(max-width:1160px){.erp-overview.admin-overview{grid-template-columns:1fr}}
+@media(max-width:600px){.admin-overview .erp-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-masthead .actions>button,.admin-masthead select,.admin-masthead summary{padding-inline:9px}}
