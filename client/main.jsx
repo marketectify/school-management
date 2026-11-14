@@ -270,6 +270,10 @@ function RolesPage() {
     <article className="panel" key={role}><h2>{role}</h2><p>{access}</p></article>)}</div></>;
 }
 
+function SchoolCrest() {
+  return <span className="school-crest" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 3 22 6v7c0 5-4 8-8 10-4-2-8-5-8-10V6z" fill="#fff" stroke="#889bce"/><path d="m10 12 4-2 4 2-4 2-4-2Zm2 2v3l2 1 2-1v-3" stroke="#4059ba" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 6v2m-1-1h2" stroke="#e75a90" strokeLinecap="round"/><path d="M8 24h12" stroke="#4059ba" strokeWidth="1.2" strokeLinecap="round"/></svg></span>;
+}
+
 function Workspace({ user, onLogout }) {
   const dashboard = useData('dashboard');
   const [view, setView] = useState({ key: 'dashboard', revision: 0 });
@@ -326,12 +330,18 @@ function Workspace({ user, onLogout }) {
     <aside className={'preskool-sidebar' + (nav ? ' open' : '')}><div className="sidebar-brand"><Brand />
       <button aria-label="Toggle compact sidebar" onClick={() => setDisplay(layout === 'mini' ? 'default' : 'mini')}>☰</button></div>
       <div className="school-picker"><button className="school-name" aria-expanded={schoolOpen} onClick={() => setSchoolOpen(!schoolOpen)}>
-        <span className="school-crest" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 3 22 6v7c0 5-4 8-8 10-4-2-8-5-8-10V6z" fill="#fff" stroke="#889bce"/><path d="m10 12 4-2 4 2-4 2-4-2Zm2 2v3l2 1 2-1v-3" stroke="#4059ba" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 6v2m-1-1h2" stroke="#e75a90" strokeLinecap="round"/><path d="M8 24h12" stroke="#4059ba" strokeWidth="1.2" strokeLinecap="round"/></svg></span>
+        <SchoolCrest />
         <span className="school-card-copy"><strong>{campus?.name ?? 'Global International'}</strong><small>{campus?.campus ?? 'School Management'}</small></span>
         <svg className="school-card-chevron" viewBox="0 0 12 16" fill="none" aria-hidden="true"><path d="m3 6 3-3 3 3m-6 4 3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
-        {schoolOpen && <div className="school-options"><h2>Switch school</h2><button onClick={() => switchSchool('')}>Global International {school === '' && '✓'}</button>
-          {schools.map(row => <button onClick={() => switchSchool(row._id)} key={row._id}>{row.name} {school === row._id && '✓'}<small>{row.campus}</small></button>)}
-          {user.role === 'admin' && <button onClick={() => { setAddingSchool(true); setSchoolOpen(false); }}>＋ Add new school</button>}</div>}
+        {schoolOpen && <div className="school-options"><h2>Switch school</h2>
+          <button className="school-option" aria-pressed={school === ''} onClick={() => switchSchool('')}><SchoolCrest />
+            <span><strong>Global International</strong><small>Primary campus</small></span>{school === '' && <span className="school-check" aria-hidden="true">✓</span>}</button>
+          {schools.map((row,index) => <button className="school-option" aria-pressed={school === row._id} onClick={() => switchSchool(row._id)} key={row._id}>
+            <span className={'school-monogram school-color-'+index%4} aria-hidden="true">{row.name.trim()[0]?.toUpperCase()}</span>
+            <span><strong>{row.name}</strong><small>{row.campus}</small></span>{school === row._id && <span className="school-check" aria-hidden="true">✓</span>}</button>)}
+          {user.role === 'admin' && <div className="school-add-wrap"><button className="school-option school-add" onClick={() => { setAddingSchool(true); setSchoolOpen(false); }}>
+            <span className="school-monogram" aria-hidden="true">＋</span><strong>Add new school</strong></button></div>}
+        </div>}
       </div>
       <SidebarMenu user={user} modules={modules} view={view} go={go} layout={layout} setDisplay={setDisplay}
         openSchools={() => setSchoolOpen(true)} openTopMenu={key => setTopRequest({key})} />
