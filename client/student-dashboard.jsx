@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import './teacher-dashboard.css';
 import './student-dashboard.css';
+import { DashboardIcon, HeroAvatar, HeroClock, HeroMetric, HeroTag } from './dashboard-hero.jsx';
 
 const tones=['blue','green','gold','sky','purple','cyan','red','pink'];
 const keys=['students','classes','subjects','teachers','timetable','sessions','homework','submissions','exams','results','attendance','fees','payments','loans','library','calendar','announcements','achievements','goals','study','studentTransport','transport','leaves','libraryRequests'];
@@ -41,6 +42,45 @@ function Ring({value,text,caption,color='#4059e4'}) {
   return <div className="sd-ring" style={{'--sd-ring-color':color,'--sd-ring-value':Math.max(0,Math.min(100,value??0))+'%'}}><div><strong>{text??label(value)}</strong><small>{caption}</small></div></div>;
 }
 const empty=text=><p className="muted td-empty">{text}</p>;
+
+function StudentUpdates({events,attendance,submissions,marks,payments,future,pending,alerts,today,weekStart,todayRecord,due,named,openCalendar,openNotifications,openFees,openExams,openAssignments,openAttendance}) {
+  const timeline = [
+    ...submissions.map(row=>({id:row._id,title:row.status==='Graded'?'Assignment graded':'Assignment submitted',date:row.date,detail:named('homework',row.homeworkId)?.name,icon:'clipboard',tone:'green'})),
+    ...attendance.map(row=>({id:row._id,title:'Attendance marked',date:row.date,detail:row.status,icon:'calendar',tone:'sky'})),
+    ...marks.map(row=>({id:row._id,title:'Exam result published',date:row.exam.date,detail:row.exam.name+' · Grade '+grade(row.score),icon:'medal',tone:'blue'})),
+    ...payments.map(row=>({id:row._id,title:'Fee payment',date:row.date,detail:money(row.amount)+' · '+(named('fees',row.feeId)?.name??'Payment'),icon:'wallet',tone:'gold'})),
+  ].filter(row=>row.date>=weekStart&&row.date<=today).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const notifications = [
+    future[0]&&['Exam Alert',future[0].name+' · '+short(future[0].date),'cap',openExams],
+    pending[0]&&['Assignment Reminder',pending[0].name+' · '+short(pending[0].due),'file',openAssignments],
+    due>0&&['Fee Due Alert',money(due)+' outstanding','wallet',openFees,'urgent'],
+    todayRecord&&['Attendance Alert','Marked '+todayRecord.status.toLowerCase()+' today','calendar',openAttendance],
+    ...alerts.slice(0,2).map(row=>[row.name,row.body,'megaphone',openNotifications]),
+  ].filter(Boolean);
+  return <div className="td-grid td-three sd-updates">
+    <Panel title="Calendar" icon={<DashboardIcon name="calendar"/>} action={<button className="sd-update-link" onClick={openCalendar}>Open ›</button>}>
+      <ol className="sd-calendar-list">{events.slice(0,6).map(row=>{
+        const date=new Date(row.date+'T12:00:00');
+        return <li key={row._id}><time className="sd-date-tile" dateTime={row.date}><strong>{date.getDate()}</strong><small>{date.toLocaleString(undefined,{month:'short'})}</small></time>
+          <div><strong>{row.name}</strong><small>{[row.start,row.notes].filter(Boolean).join(' · ')}</small></div>
+          {row.date===today&&<span className="td-badge td-gold">Today</span>}
+        </li>;
+      })}</ol>{!events.length&&empty('No upcoming events.')}
+    </Panel>
+    <Panel title="Activity Timeline" icon={<DashboardIcon name="arrow"/>} action={<span className="td-badge td-sky">Last 7 Days</span>}>
+      <ol className="sd-timeline">{timeline.map(row=><li key={row.id}>
+        <span className={'td-icon td-'+row.tone}><DashboardIcon name={row.icon}/></span>
+        <div><strong>{row.title}</strong><small>{row.detail}</small></div>
+        <time dateTime={row.date}>{row.date===today?'Today':short(row.date)}</time>
+      </li>)}</ol>{!timeline.length&&empty('No activity recorded in the last 7 days.')}
+    </Panel>
+    <Panel title="Notifications" icon={<DashboardIcon name="bell"/>} action={<button className="sd-update-link" onClick={openNotifications}>View all</button>}>
+      <div className="sd-notice-list">{notifications.map(([title,detail,icon,run,kind],i)=><button className={kind??''} key={title+i} onClick={run}>
+        <span className={'td-icon '+(kind?'td-red':'td-sky')}><DashboardIcon name={icon}/></span><span><strong>{title}</strong><small>{detail}</small></span>
+      </button>)}</div>{!notifications.length&&empty('No notifications.')}
+    </Panel>
+  </div>;
+}
 
 export default function StudentDashboard({user,year,go,openNotifications}) {
   const [data,setData]=useState(null), [error,setError]=useState(''), [notice,setNotice]=useState('');
@@ -137,19 +177,34 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
 
   return <div className="td-root sd-root">
     {error&&<p className="error" role="alert">{error}</p>}{notice&&<p className="td-confirm" role="status">{notice}</p>}
-    <section className="panel td-hero">
-      <div className="td-hero-head"><div className="td-person"><span className="td-avatar">{(student?.name??user.name).split(' ').slice(0,2).map(word=>word[0]).join('')}</span><div>
-        <small className="td-greeting">Welcome back</small><h2>{student?.name??user.name}</h2>
-        <div className="td-person-tags">{[student?.admission,className,student?.year,transport&&('Transport · '+(route?.name??'Assigned'))].filter(Boolean).map(value=><span className="td-badge td-blue" key={value}>{value}</span>)}</div>
-      </div></div><div className="td-time"><strong>{now.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</strong><small>{now.toLocaleDateString(undefined,{dateStyle:'full'})}</small>
-        {todayRecord&&<span className={'td-badge td-'+(attended(todayRecord)?'green':'red')}>{todayRecord.status} today</span>}
-        {!primary&&<label>Preview student<select value={id??''} onChange={event=>setSelected(event.target.value)}>{roster.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label>}
-      </div></div>
+    <section className="panel td-hero dashboard-person-hero student-person-hero">
+      <div className="td-hero-head"><div className="td-person">
+        <HeroAvatar kind="student" name={student?.name??user.name} online={todayRecord&&attended(todayRecord)} demo={/^DEMO-[678]0[1-4]$/.test(student?.admission??'')}/>
+        <div><small className="td-greeting">Welcome back 👋</small><h2>{student?.name??user.name}</h2>
+          <div className="td-person-tags">
+            {[[student?.admission,'badge'],[className,'cap'],[student?.rollNo&&'Roll '+student.rollNo,'grid'],[student?.house,'flag'],[student?.year,'calendar']].filter(([name])=>name).map(([name,icon])=><HeroTag key={icon} icon={icon}>{name}</HeroTag>)}
+          </div>
+          <div className="td-person-tags dashboard-extra-tags">
+            {student?.scholarship&&<HeroTag tone="gold" icon="medal">{student.scholarship}</HeroTag>}
+            {transport&&<HeroTag tone="sky" icon="bus">Transport · {route?.name??'Assigned'}</HeroTag>}
+            {student?.hostel&&<HeroTag tone="purple" icon="house">Hostel · {student.hostel}</HeroTag>}
+          </div>
+        </div></div><HeroClock now={now} status={todayRecord?.status}/></div>
+      {!primary&&<label className="dashboard-preview-picker">Preview student<select value={id??''} onChange={event=>setSelected(event.target.value)}>{roster.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label>}
       {!student&&empty('No linked student record for this academic year.')}
-      <Metrics compact items={[[ 'Attendance',label(rate),'✓'],['Average Marks',label(averageMarks),'☆'],['Learning Progress',label(completion),'✧'],
-        ['Profile Completion',label(student?percent(['name','admission','classId','guardian','phone','year'].filter(key=>student[key]).length,6):null),'◎',action('students',false,student?{id,name:student.name}:undefined)],
-        ['Subjects Passed',subjectScores.filter(row=>row.score>=50).length+' / '+subjectScores.length,'◇'],['Library Books',issued.length,'▤']]}/>
-      <div className="td-quick"><small>ϟ Quick actions:</small>{[['View Timetable',action('timetable')],['Assignments',scroll('sd-assignments')],['Homework',action('homework')],['Exam Results',action('results')],['Library',scroll('sd-library')],['Fee Details',feeDetails],['Message Teacher',action('messages')],['Request Leave',()=>setDialog({kind:'leave'})]].filter(([name])=>primary||name!=='Request Leave').map(([name,fn],i)=><button className={i===0?'primary':''} key={name} onClick={fn}>{name}</button>)}</div>
+      <div className="td-metrics td-compact dashboard-hero-metrics">
+        <HeroMetric name="Attendance" value={label(rate)} icon="calendar" tone="green"/>
+        <HeroMetric name="Average Marks" value={label(averageMarks)} icon="medal" tone="blue"/>
+        <HeroMetric name="Learning Progress" value={label(completion)} icon="sparkle" tone="purple"/>
+        <HeroMetric name="Profile Completion" progress={student?percent(['name','admission','classId','guardian','phone','year'].filter(key=>student[key]).length,6):null} value="—" icon="badge" tone="cyan" run={action('students',false,student?{id,name:student.name}:undefined)}/>
+        <HeroMetric name="Subjects Passed" value={subjectScores.filter(row=>row.score>=50).length+' / '+subjectScores.length} icon="medal" tone="gold"/>
+        <HeroMetric name="Library Books" value={issued.length} icon="book" tone="sky"/>
+      </div>
+      <div className="td-quick dashboard-quick"><small>ϟ Quick actions:</small>{[
+        ['View Timetable','grid',action('timetable')],['Assignments','file',scroll('sd-assignments')],['Homework','book',action('homework')],
+        ['Exam Results','badge',action('results')],['Library','book',scroll('sd-library')],['Fee Details','wallet',feeDetails],
+        ['Message Teacher','chat',action('messages')],['Request Leave','calendar',()=>setDialog({kind:'leave'})],
+      ].filter(([name])=>primary||name!=='Request Leave').map(([name,icon,run],i)=><button className={i===0?'primary':''} key={name} onClick={run}><DashboardIcon name={icon}/>{name}</button>)}</div>
     </section>
     <Metrics items={[[ 'Average Marks',label(averageMarks),'☆',action('results')],['Attendance',label(rate),'✓',action('attendance')],['Assignments Pending',pending.length,'▧',scroll('sd-assignments')],
       ['Homework Due',pending.filter(row=>row.due>=today).length,'▤',action('homework')],['Upcoming Exams',future.length,'◇',action('exams')],
@@ -160,13 +215,13 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
         <div className="sd-periods">{schedule.map((row,i)=><article className={'td-period td-'+(session(row)?.status==='Live'?'red':session(row)?.status==='Done'?'green':tones[(i+2)%tones.length])} key={row._id}><div><strong>{row.start}</strong><small>{duration(row)} min</small></div><div><strong>{named('subjects',row.subjectId)?.name??row.name}</strong><small>{[named('teachers',row.teacherId)?.name,row.room].filter(Boolean).join(' · ')}</small></div><div className="actions"><span className="td-badge">{session(row)?.status??(row===upcoming[0]?'Next':row.start)}</span><button onClick={()=>setDialog({kind:'class',row})}>Details</button></div></article>)}</div>
         {!schedule.length&&empty('No classes scheduled today.')}
       </Panel>
-      <Panel title="Learning Insights" icon="✧" extra="td-insights" action={<span className="td-badge td-purple">Classroom data</span>}>
+      <Panel title="Learning Insights" icon="✧" extra="td-insights sd-learning-insights" action={<span className="td-badge td-purple">Classroom data</span>}>
         <div className="td-insight-summary"><Ring value={averageMarks} caption="Avg. marks" color="#5708ec"/><div><strong>{averageMarks==null?'Learning summary':averageMarks>=80?'Strong performance':'Room to improve'}</strong><small>Based on published exam results</small></div></div>
-        <Row title="Attendance" detail={rate==null?'No attendance recorded':label(rate)+(rate<90?' · below 90%':' · on track')} icon="✓" tone="green"/>
+        <div className="sd-insight-list"><Row title="Attendance" detail={rate==null?'No attendance recorded':label(rate)+(rate<90?' · below 90%':' · on track')} icon="✓" tone="green"/>
         <Row title="Strongest subject" detail={wins?wins.name+' · '+label(wins.score):'Awaiting results'} icon="☆"/>
         <Row title="Subject to review" detail={weakest?weakest.name+' · '+label(weakest.score):'Awaiting results'} tone="red" icon="◎"/>
         <Row title="Study suggestion" detail={weakest?'Revise '+weakest.name+' and review your latest results.':'Log your study time to monitor progress.'} tone="gold" icon="✧"/>
-        <Row title="Upcoming assessments" detail={future[0]?future[0].name+' · '+short(future[0].date):'No exams scheduled'} tone="cyan" icon="▦"/>
+        <Row title="Upcoming assessments" detail={future[0]?future[0].name+' · '+short(future[0].date):'No exams scheduled'} tone="cyan" icon="▦"/></div>
       </Panel>
     </div>
     <Panel title="Academic Performance" icon="▥" action={<button onClick={report} disabled={!marks.length}>Full Report</button>}>
@@ -243,17 +298,11 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
           <h3>Route Stops</h3><Row title={transport.name} detail={route?.stops} icon="↗"/></>:empty('No transport assignment on record.')}
       </Panel>
     </div>
-    <div className="td-grid td-three">
-      <Panel title="Calendar" icon="▦" action={<button onClick={action('calendar')}>Open ›</button>}>{schoolEvents.slice(0,6).map((row,i)=><Row key={row._id} title={row.name} detail={[row.start,row.notes].filter(Boolean).join(' · ')} icon={short(row.date).split(' ').at(-1)} tone={tones[i%tones.length]}/>)}{!schoolEvents.length&&empty('No upcoming events.')}</Panel>
-      <Panel title="Activity Timeline" icon="↗" action={<button onClick={action('activity')}>View All</button>}>{[...submissions.map(row=>({id:row._id,title:row.status==='Graded'?'Assignment graded':'Assignment submitted',date:row.date,detail:named('homework',row.homeworkId)?.name})),...attendance.map(row=>({id:row._id,title:'Attendance marked',date:row.date,detail:row.status})),...marks.map(row=>({id:row._id,title:'Exam result recorded',date:row.exam.date,detail:row.exam.name}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map((row,i)=><Row key={row.id} title={row.title} detail={[row.detail,short(row.date)].filter(Boolean).join(' · ')} icon="↗" tone={tones[i%tones.length]}/>)}</Panel>
-      <Panel title="Notifications" icon="♧" action={<button onClick={openNotifications}>View All</button>}>
-        {future[0]&&<Row title="Exam Alert" detail={future[0].name+' · '+short(future[0].date)} icon="▥"/>}
-        {pending[0]&&<Row title="Assignment Reminder" detail={pending[0].name+' · '+short(pending[0].due)} icon="▧" tone="gold"/>}
-        {due>0&&<Row title="Fee Due Alert" detail={money(due)+' outstanding'} icon="◈" tone="red"/>}
-        {todayRecord&&<Row title="Attendance Alert" detail={todayRecord.status+' today'} icon="✓" tone="green"/>}
-        {alerts.slice(0,2).map(row=><Row key={row._id} title={row.name} detail={row.body}/>)}
-      </Panel>
-    </div>
+    <StudentUpdates events={schoolEvents} attendance={attendance} submissions={submissions} marks={marks}
+      payments={(d.payments??[]).filter(row=>fees.some(fee=>fee._id===row.feeId))} future={future} pending={pending} alerts={alerts}
+      today={today} weekStart={iso(shifted(now,-6))} todayRecord={todayRecord} due={due}
+      named={named} openCalendar={action('calendar')} openNotifications={openNotifications} openFees={feeDetails}
+      openExams={action('exams')} openAssignments={scroll('sd-assignments')} openAttendance={action('attendance')}/>
     {dialog&&<div className="overlay"><section className="modal td-report" role="dialog" aria-modal="true" aria-label="Student dashboard details">
       {dialog.kind==='upload'?<form onSubmit={upload}><h2>{dialog.task.name}</h2><p className="muted">{dialog.task.instructions}</p><label>Assignment PDF (up to 2 MB)<input type="file" name="file" accept="application/pdf,.pdf" required/></label>{error&&<p className="error" role="alert">{error}</p>}<button className="primary" disabled={busy}>{busy?'Uploading…':'Submit Assignment'}</button></form>:
         dialog.kind==='selectUpload'?<><h2>Choose Assignment</h2>{pending.map(row=><Row key={row._id} title={row.name} detail={short(row.due)} action={<button onClick={uploadFor(row)}>Select</button>}/>)}</>:
