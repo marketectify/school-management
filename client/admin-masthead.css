@@ -3,30 +3,76 @@
 .admin-masthead .breadcrumbs{font-size:.96rem}
 .admin-masthead .actions>button,.admin-masthead select,.admin-masthead summary,.admin-overview .actions button{min-height:46px;border-radius:12px;padding:10px 15px;box-shadow:0 2px 0 #293c7120,0 5px 12px #2033550b}
 .admin-masthead summary.primary,.admin-overview .actions .primary{box-shadow:0 2px 0 #22369f,0 5px 13px #4355c638;font-weight:650}
-.erp-overview.admin-overview{display:grid;grid-template-columns:minmax(295px,.72fr) minmax(0,1fr);gap:24px;margin-bottom:clamp(18px,2vw,30px)}
-.admin-overview .erp-greeting i{width:clamp(55px,5vw,79px);height:clamp(55px,5vw,79px);font-size:1.65rem}
-.admin-overview .erp-greeting h2{font-size:clamp(1.15rem,1.75vw,1.75rem)}
-.admin-overview .erp-metrics{min-width:0;grid-template-columns:repeat(4,minmax(0,1fr))}
-.admin-overview .erp-metrics button{min-height:125px;align-content:start;padding:14px 12px;gap:5px}
-.admin-overview .erp-metrics i{width:42px;height:42px;margin-bottom:4px}
-.admin-overview .erp-metrics small{line-height:1.25}
-@media(max-width:1160px){.erp-overview.admin-overview{grid-template-columns:1fr}}
-@media(max-width:600px){.admin-overview .erp-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-masthead .actions>button,.admin-masthead select,.admin-masthead summary{padding-inline:9px}}
+.erp-overview.admin-overview {
+  display: grid;
+  grid-template-columns: minmax(0,42fr) minmax(0,58fr);
+  gap: 24px;
+  padding: 25px 28px;
+  margin-bottom: clamp(18px,2vw,30px);
+  background: radial-gradient(ellipse at 95% 23%,#e9edfa 0,transparent 27%),var(--surface);
+}
 
-.erp-overview.admin-overview{grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:24px;padding:25px 28px}
-.admin-overview .erp-greeting{align-items:center;gap:20px;margin-bottom:20px}
-.admin-overview .erp-greeting i{flex:none;width:79px;height:79px;border-radius:17px;background:linear-gradient(135deg,#3e57df,#6c86f7)}
-.admin-overview .erp-greeting i svg{width:35px;height:35px}
-.admin-overview .erp-greeting h2{margin-bottom:7px}.admin-overview .erp-greeting small{font-size:.94rem}
-.admin-overview .actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:49px}
-.admin-overview .actions svg{width:19px;height:19px}
-.admin-overview .erp-metrics{gap:clamp(8px,1.2vw,20px)}
-.admin-overview .erp-metrics button{min-height:144px;align-content:start;gap:6px;padding:14px 15px;border-radius:15px}
-.admin-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:3px;margin-bottom:4px}
-.admin-overview .erp-metrics i{flex:none;width:51px;height:51px;margin:0;border-radius:14px}
-.admin-overview .erp-metrics i svg{width:23px;height:23px}
-.admin-kpi-indicator{display:inline-flex;align-items:center;gap:2px;color:#138b34;font-size:.77rem;font-weight:750;white-space:nowrap}
-.admin-kpi-indicator.red{color:#e4254b}.admin-kpi-indicator svg{width:12px;height:12px}
-.admin-overview .erp-metrics strong{font-size:1.45rem}.admin-overview .erp-metrics small{font-size:.85rem}
-@media (max-width:1250px){.erp-overview.admin-overview{grid-template-columns:1fr}.admin-overview .erp-metrics button{min-height:125px}}
-@media (max-width:600px){.erp-overview.admin-overview{padding:16px}.admin-overview .erp-greeting i{width:56px;height:56px}.admin-overview .erp-greeting i svg{width:26px;height:26px}}
+.dark .erp-overview.admin-overview {
+  background: radial-gradient(ellipse at 95% 23%,#242d4c 0,transparent 32%),var(--surface);
+}
+
+.admin-overview .erp-greeting { align-items:center; gap:20px; margin-bottom:20px; }
+.admin-overview .erp-greeting i {
+  flex:none; width:79px; height:79px; border-radius:17px; background:linear-gradient(135deg,#3e57df,#6c86f7);
+}
+.admin-overview .erp-greeting i svg { width:35px; height:35px; }
+.admin-overview .erp-greeting h2 { font-size:clamp(1.15rem,1.75vw,1.75rem); margin-bottom:7px; }
+.admin-overview .erp-greeting small { font-size:.94rem; }
+.admin-overview .actions button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:49px; }
+.admin-overview .actions svg { width:19px; height:19px; }
+
+.admin-overview .erp-metrics {
+  container-type: inline-size;
+  min-width: 0;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: clamp(10px,2.28cqi,20px);
+}
+
+.admin-overview .erp-metrics .admin-kpi {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  min-height: clamp(111px,17.3cqi,144px);
+  gap: 4px;
+  padding: clamp(9px,1.78cqi,15px) clamp(9px,1.93cqi,16px);
+  border-radius: 15px;
+  background: transparent;
+  text-align: start;
+  box-shadow: none;
+}
+
+.admin-overview .erp-metrics .admin-kpi:hover { border-color:var(--brand); }
+.admin-kpi-head { display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:6px; }
+.admin-kpi-icon {
+  display:grid; place-items:center; flex:none; width:clamp(35px,6.12cqi,51px); aspect-ratio:1;
+  border-radius:13px; background:var(--kpi-tile); color:var(--kpi-icon);
+}
+.admin-kpi-icon svg { width:45%; height:45%; }
+.admin-kpi-attendance { --kpi-tile:#e5f7e7; --kpi-icon:#12ab19; }
+.admin-kpi-admissions { --kpi-tile:#eff2ff; --kpi-icon:#435af1; }
+.admin-kpi-payments { --kpi-tile:#fbf6e6; --kpi-icon:#dc9900; }
+.admin-kpi-exams { --kpi-tile:#f0eaff; --kpi-icon:#5708ec; }
+.admin-kpi-trend {
+  display:inline-flex; align-items:center; gap:2px; color:#008726;
+  font-size:clamp(.66rem,1.65cqi,.86rem); font-weight:650; white-space:nowrap;
+}
+.admin-kpi-trend.bad { color:#e31941; }
+.dark .admin-kpi-trend { color:#79e38c; }
+.dark .admin-kpi-trend.bad { color:#ff91aa; }
+.admin-kpi-trend svg { width:13px; height:13px; flex:none; }
+.admin-overview .erp-metrics strong { font-size:clamp(1.08rem,2.68cqi,1.42rem); font-weight:650; line-height:1.24; }
+.admin-overview .erp-metrics small { font-size:clamp(.73rem,1.77cqi,.92rem); line-height:1.25; }
+
+@media (max-width:1250px) { .erp-overview.admin-overview { grid-template-columns:1fr; } }
+@media (max-width:600px) {
+  .erp-overview.admin-overview { padding:16px; }
+  .admin-overview .erp-greeting i { width:56px; height:56px; }
+  .admin-overview .erp-greeting i svg { width:26px; height:26px; }
+  .admin-overview .erp-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .admin-masthead .actions>button,.admin-masthead select,.admin-masthead summary { padding-inline:9px; }
+}

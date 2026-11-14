@@ -29,6 +29,8 @@ const paths = {
   down:'M12 4v16m-6-6 6 6 6-6',
   minus:'M5 12h14',
   trophy:'M8 16h8m-4-4v4m-4-9H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4M8 4h8v4a4 4 0 0 1-8 0V4Zm0 16h8',
+  trendDown:'m3 7 6 6 4-4 8 8m-5 0h5v-5',
+  certificate:'M12 3h3l5 5v13h-9m4-18v6h5M13 13a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-5 2-1 6 3-2 3 2-1-6',
   plus:'M12 6v12m-6-6h12M3 3h18v18H3z',
 };
 
