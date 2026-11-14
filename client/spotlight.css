@@ -1,0 +1,196 @@
+.spotlight-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  min-height: clamp(260px, 20.5vw, 325px);
+  padding: 20px;
+  border-radius: 20px;
+  color: #fff;
+  container-type: inline-size;
+}
+
+.spotlight-teacher {
+  --spotlight-accent: #087d35;
+  background: linear-gradient(123deg, #1bbf54 0%, #168a3c 100%);
+  box-shadow: 0 16px 28px #10984535;
+}
+
+.spotlight-student {
+  --spotlight-accent: #3654ca;
+  background: linear-gradient(123deg, #566fe3 0%, #2963b9 100%);
+  box-shadow: 0 16px 28px #405bd42e;
+}
+
+.spotlight-card::before, .spotlight-card::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.spotlight-card::before {
+  width: 218px;
+  height: 218px;
+  inset-block-start: -65px;
+  inset-inline-end: -53px;
+  background: #ffffff1f;
+}
+
+.spotlight-card::after {
+  width: 114px;
+  height: 114px;
+  inset-block-start: 42px;
+  inset-inline-end: 69px;
+  border: 2px dashed #ffffff35;
+}
+
+.spotlight-top {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.spotlight-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+.spotlight-label, .spotlight-award, .spotlight-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spotlight-label {
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: var(--spotlight-accent);
+  background: #fff;
+  font-size: .81rem;
+  font-weight: 700;
+  letter-spacing: .045em;
+}
+
+.spotlight-stars {
+  position: relative;
+  color: #ffbf28;
+  font-size: 1.01rem;
+  white-space: nowrap;
+  letter-spacing: .13em;
+  line-height: 1.1;
+}
+
+.spotlight-stars-outline {
+  color: transparent;
+  -webkit-text-stroke: 1px #ffbf28;
+}
+
+.spotlight-stars-fill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  overflow: hidden;
+}
+
+.spotlight-card h2 {
+  margin: 10px 0 4px;
+  font-size: clamp(1.22rem, 1.6vw, 1.5rem);
+  letter-spacing: -.025em;
+}
+
+.spotlight-card h2 button, .dark .spotlight-card h2 button:not(.primary) {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  font: inherit;
+  color: #fff;
+}
+
+.spotlight-card h2 button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.spotlight-card h2 button:focus-visible {
+  outline-color: white;
+}
+
+.spotlight-detail {
+  margin: 2px 0 0;
+  font-weight: 600;
+  color: #ffffffe0;
+}
+
+.spotlight-award {
+  margin: 26px 0 10px;
+  padding: 5px 11px;
+  border: 1px solid #ffffff38;
+  border-radius: 40px;
+  background: #ffffff26;
+  font-size: clamp(.72rem, 1vw, .94rem);
+  font-weight: 700;
+}
+
+.spotlight-portrait {
+  position: absolute;
+  z-index: -1;
+  inset-block-end: 0;
+  inset-inline-end: 14px;
+  width: min(33%, 150px);
+  height: auto;
+  pointer-events: none;
+}
+
+.spotlight-card dl.spotlight-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: auto 0 0;
+  padding-top: 15px;
+  max-width: 100%;
+}
+
+.spotlight-card:has(.spotlight-portrait) .spotlight-stats {
+  max-width: 73%;
+}
+
+.spotlight-stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 10px 9px;
+  border: 1px solid #ffffff35;
+  background: #ffffff26;
+  border-radius: 15px;
+}
+
+.spotlight-stats dd {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1rem, 1.35vw, 1.36rem);
+  font-weight: 750;
+}
+
+.spotlight-stats dt {
+  color: #ffffffe0;
+  font-size: clamp(.66rem, .88vw, .86rem);
+}
+
+@container (max-width: 315px) {
+  .spotlight-stars { font-size: .78rem; }
+  .spotlight-card dl.spotlight-stats { gap: 5px; }
+  .spotlight-stats div { padding-inline: 6px; }
+  .spotlight-portrait { inset-inline-end: 4px; }
+}
