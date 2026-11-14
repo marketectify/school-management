@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import './teacher-dashboard.css';
 import './student-dashboard.css';
+import { DashboardMetrics, delta } from './dashboard-metrics.jsx';
 import { DashboardIcon, HeroAvatar, HeroClock, HeroMetric, HeroTag } from './dashboard-hero.jsx';
 
 const tones=['blue','green','gold','sky','purple','cyan','red','pink'];
@@ -173,6 +174,16 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
   const wins=subjectScores[0], weakest=subjectScores.at(-1);
   const readTarget=goals.find(row=>row.metric==='Books read')?.target??12;
   const dateCount=days=>[...Array(days)].map((_,i)=>iso(shifted(now,i-days+1)));
+  const previousDate=iso(shifted(now,-7));
+  const dateOf=row=>row.date??row.createdAt?.slice(0,10);
+  const currentWeek=rows=>rows.filter(row=>dateOf(row)>previousDate&&dateOf(row)<=today);
+  const priorWeek=rows=>rows.filter(row=>dateOf(row)>iso(shifted(now,-14))&&dateOf(row)<=previousDate);
+  const previousTasks=tasks.filter(row=>row.createdAt?.slice(0,10)<=previousDate);
+  const previousPending=previousTasks.filter(row=>!submission(row)||submission(row).date>previousDate);
+  const currentExamWeek=future.filter(row=>row.date<iso(shifted(now,7)));
+  const priorExamWeek=exams.filter(row=>row.date>=previousDate&&row.date<today);
+  const examResults=marks.map(row=>({...row,date:row.exam.date}));
+  const passedSubjects=rows=>new Set(rows.filter(row=>row.score>=50).map(row=>row.exam.subjectId)).size;
   if(!data)return error?<><p className="error">{error}</p><button onClick={()=>reload(v=>v+1)}>Retry</button></>:empty('Loading student dashboard…');
 
   return <div className="td-root sd-root">
@@ -206,9 +217,18 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
         ['Message Teacher','chat',action('messages')],['Request Leave','calendar',()=>setDialog({kind:'leave'})],
       ].filter(([name])=>primary||name!=='Request Leave').map(([name,icon,run],i)=><button className={i===0?'primary':''} key={name} onClick={run}><DashboardIcon name={icon}/>{name}</button>)}</div>
     </section>
-    <Metrics items={[[ 'Average Marks',label(averageMarks),'☆',action('results')],['Attendance',label(rate),'✓',action('attendance')],['Assignments Pending',pending.length,'▧',scroll('sd-assignments')],
-      ['Homework Due',pending.filter(row=>row.due>=today).length,'▤',action('homework')],['Upcoming Exams',future.length,'◇',action('exams')],
-      ['Library Books',issued.length,'▤',scroll('sd-library')],['Fee Due',money(due),'◈',feeDetails],['Achievements',awards.length,'☆',scroll('sd-awards')],['Subjects Passed',subjectScores.filter(row=>row.score>=50).length,'▥',action('results')],['Learning Progress',label(completion),'↗',scroll('sd-learning')]]}/>
+    <DashboardMetrics items={[
+      {name:'Average Marks',value:averageMarks??'—',suffix:averageMarks==null?null:'%',icon:'medal',tone:'blue',change:delta(marks[0]?.score,marks[1]?.score,'Latest result vs previous result',{unit:' pp'}),run:action('results')},
+      {name:'Attendance',value:rate??'—',suffix:rate==null?null:'%',icon:'calendar',tone:'green',change:delta(attendanceRate(currentWeek(attendance)),attendanceRate(priorWeek(attendance)),'Last 7 days vs previous 7 days',{unit:' pp'}),run:action('attendance')},
+      {name:'Assignments Pending',value:pending.length,icon:'file',tone:'gold',change:delta(pending.length,tasks.length?previousPending.length:null,'Pending now vs 7 days ago',{lower:true}),run:scroll('sd-assignments')},
+      {name:'Homework Due',value:pending.filter(row=>row.due>=today).length,icon:'book',tone:'sky',change:delta(pending.filter(row=>row.due>=today).length,previousPending.filter(row=>row.due>=previousDate).length,'Upcoming homework vs 7 days ago',{lower:true}),run:action('homework')},
+      {name:'Upcoming Exams',value:future.length,icon:'cap',tone:'purple',change:delta(currentExamWeek.length,priorExamWeek.length,'Exams in next 7 days vs previous 7 days'),run:action('exams')},
+      {name:'Library Books',value:issued.length,icon:'book',tone:'cyan',change:delta(currentWeek(loans).filter(row=>row.status!=='Reserved').length,priorWeek(loans).filter(row=>row.status!=='Reserved').length,'Books borrowed in last 7 days vs previous 7 days'),run:scroll('sd-library')},
+      {name:'Fee Due',value:money(due),icon:'wallet',tone:'red',change:fees.length?{direction:due?'down':'check',tone:due?'bad':'good',text:due?'Due':'Paid',title:'Fee balance status'}:null,run:feeDetails},
+      {name:'Achievements',value:awards.length,icon:'trophy',tone:'gold',change:delta(currentWeek(awards).length,priorWeek(awards).length,'New achievements in last 7 days vs previous 7 days'),run:scroll('sd-awards')},
+      {name:'Subjects Passed',value:subjectScores.filter(row=>row.score>=50).length,icon:'badge',tone:'blue',change:delta(passedSubjects(currentWeek(examResults)),passedSubjects(priorWeek(examResults)),'Subjects passed in last 7 days vs previous 7 days'),run:action('results')},
+      {name:'Learning Progress',value:completion??'—',suffix:completion==null?null:'%',icon:'arrow',tone:'green',change:delta(completion,percent(previousTasks.length-previousPending.length,previousTasks.length),'Assignment completion vs 7 days ago',{unit:' pp'}),run:scroll('sd-learning')},
+    ]}/>
     <div className="td-grid td-wide">
       <Panel title="Today's Schedule" icon="▦" action={<button onClick={action('timetable')}>Full Timetable</button>}>
         <Metrics compact items={[[ 'Completed',completed,'✓'],['In Progress',live,'▶'],['Upcoming',upcoming.length,'◷'],['Class Time',total(schedule.map(row=>({minutes:duration(row)})),'minutes')+' min','▦']]}/>
