@@ -1,3 +1,4 @@
+import { DashboardIcon } from './dashboard-hero.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 
@@ -73,19 +74,19 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
   const control = (key, title, icon, badge) => <button className="top-control" aria-label={title} title={title} aria-expanded={menu === key} onClick={() => toggle(key)}>{icon}{badge > 0 && <b>{badge}</b>}</button>;
   return <header ref={root} className="preschool-top">
     <button className="mobile-menu" aria-expanded={nav} onClick={() => setNav(!nav)}>Menu</button>
-    <div className="top-search"><input ref={search} aria-label="Global search" placeholder="Search students, staff, invoices…" value={query} onFocus={() => setMenu('search')} onChange={event => { setQuery(event.target.value); setMenu('search'); }} />
-      <kbd>Ctrl K</kbd>
+    <div className="top-search"><span className="top-search-icon"><DashboardIcon name="search"/></span><input ref={search} aria-label="Global search" placeholder="Search students, staff, invoices…" value={query} onFocus={() => setMenu('search')} onChange={event => { setQuery(event.target.value); setMenu('search'); }} />
+      <span className="top-keys" aria-hidden="true"><kbd>{/Mac|iPhone|iPad/.test(navigator.platform)?'⌘':'Ctrl'}</kbd><kbd>K</kbd></span>
       {menu === 'search' && query.trim() && <section className="top-pop search-pop"><h3>Search results</h3>
         {hits.length ? hits.map(row => <button className="pop-row" key={row.id} onClick={() => open(row.key, false, { id: row.id, name: row.name })}>{row.name}<small>{row.key}</small></button>) : <p className="muted">No matching records.</p>}</section>}
     </div>
     <div className="top-tools">
-      {control('year','Academic year',<><span aria-hidden="true">▦</span><span className="year-text">Academic Year · {year || 'All'}</span><span>⌄</span></>)}
+      {control('year','Academic year',<><span className="top-year-icon"><DashboardIcon name="calendar"/></span><span className="year-text">Academic Year : {year ? year.replace(/\s*\/\s*/,' / ') : 'All'}</span><DashboardIcon name="chevron"/></>)}
       {control('country','Country and region',regions.find(item => item[2] === locale)?.[0] ?? '🌐')}
-      {user.role === 'admin' && control('add','Add New','⊞')}
-      {control('theme','Theme and layout',layout === 'dark' ? '☀' : '☾')}
-      {control('activity','Notifications','♧',unreadActivity)}
-      {control('messages','Messages','☏',unread)}
-      {control('apps','Apps','▦')}
+      {user.role === 'admin' && control('add','Add New',<DashboardIcon name="plus"/>)}
+      {control('theme','Theme and layout',<DashboardIcon name={layout === 'dark' ? 'sun' : 'moon'}/>)}
+      {control('activity','Notifications',<DashboardIcon name="bell"/>,unreadActivity)}
+      {control('messages','Messages',<DashboardIcon name="chat"/>,unread)}
+      {control('apps','Apps',<DashboardIcon name="apps"/>)}
       {control('profile','Profile',<span className="top-avatar">{user.name[0]}</span>)}
       {menu && menu !== 'search' && <section className={'top-pop pop-' + menu}>
         <div className="pop-title"><h3>{{year:'Academic Year',country:'Country and region',add:'Add New',theme:'Theme and layout',activity:'Notifications',messages:'Messages',apps:'Apps',profile:'Profile'}[menu]}</h3>

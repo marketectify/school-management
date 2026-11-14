@@ -3,6 +3,16 @@ import { previewPortraits } from './dashboard-preview-portraits.js';
 import './dashboard-hero.css';
 
 const paths = {
+  search:'M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0Zm-2 4 6 6',
+  moon:'M20 15a8.5 8.5 0 0 1-11-11 8.5 8.5 0 1 0 11 11Z',
+  sun:'M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0ZM12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2',
+  apps:'M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z',
+  chevron:'m6 9 6 6 6-6',
+  download:'M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4',
+  math:'M4 7h6M7 4v6m7-3h6M4 17h6m4-2h6m-6 4h6',
+  science:'M9 3h6m-5 0v8l-5 8a1 1 0 0 0 1 2h12a1 1 0 0 0 1-2l-5-8V3M8 16h8',
+  code:'m8 6-6 6 6 6m8-12 6 6-6 6m-2-15-4 18',
+
   cap:'m2 9 10-5 10 5-10 5L2 9Zm4 2v5c4 3 8 3 12 0v-5m4-2v6',
   calendar:'M4 6h16v14H4zM4 10h16M8 3v5m8-5v5m-8 6h3',
   time:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2',
