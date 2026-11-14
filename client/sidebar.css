@@ -4,8 +4,15 @@
 .sidebar-brand{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:72px;padding:12px 15px;border-bottom:1px solid var(--sb-line);color:var(--sb-ink)}
 .sidebar-brand button{background:transparent;border:0}
 .sidebar-brand .brand>span:first-child{border-radius:50%;background:linear-gradient(135deg,#2e49d8,#5e84ff);box-shadow:inset 0 0 0 3px #ffffff55;width:40px;height:40px}
-.preskool-sidebar .school-picker{margin:27px 15px 18px}.preskool-sidebar .school-name{min-height:66px;border-radius:15px;margin:0;color:var(--sb-ink);box-shadow:0 2px 4px #20284408}
-.preskool-sidebar .school-name .nav-icon{width:40px;height:40px;background:#5570e51b;color:var(--sb-blue);border-radius:12px}
+.preskool-sidebar .school-picker{margin:29px 15px 18px}
+.preskool-sidebar .school-name{display:grid;grid-template-columns:47px minmax(0,1fr) 13px;gap:14px;min-height:71px;padding:10px 15px 10px 12px;border:1px solid var(--sb-line);border-radius:15px;margin:0;background:var(--surface);color:var(--sb-ink);box-shadow:0 2px 4px #20284408}
+.school-crest{display:grid;place-items:center;width:47px;height:47px;border-radius:12px;background:linear-gradient(140deg,#e4e8fb,#f2f3fc)}
+.school-crest svg{width:26px;height:26px;object-fit:contain}
+.school-card-copy{min-width:0}
+.school-card-copy strong,.school-card-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.school-card-copy strong{font-size:1.04rem;font-weight:650;line-height:1.35}
+.school-card-copy small{margin-top:3px;color:var(--sb-text);font-size:.89rem;line-height:1.3}
+.school-card-chevron{color:var(--sb-text);width:13px;height:16px}
 .preskool-sidebar .school-options{z-index:8}
 .preskool-menu{padding:3px 12px 12px;scrollbar-width:thin;scrollbar-color:#a8b3c67a transparent;text-align:start}
 .preskool-menu h2{margin:16px 16px 9px;color:var(--sb-text);font-size:.76rem;font-weight:750;letter-spacing:.055em}
