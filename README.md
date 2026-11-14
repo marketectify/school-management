@@ -60,3 +60,7 @@ Calendar events, To Do items and Notes are private to the signed-in account. The
 The top bar provides record search, academic-year selection, country formatting for notifications, Quick Add, layout choices, notifications, internal messages, app shortcuts and account details. Admins can add schools and switch between their record sets. Existing records belong to the primary campus. School accounts and messaging remain shared, and teacher, student and parent sign-ins currently use the primary campus.
 
 Admin accounts can preview each dashboard layout with school data. Actual student and parent sessions remain limited to their linked student records. Email opens the internal inbox, Call opens the contact directory, and Files stores document links. This release uses neither external mail delivery nor video calling or file uploads.
+
+## Admin dashboard reporting
+
+The dashboard reads attendance, exam results, admissions, fee payments, internal messages and activity from the app. Library loans, fleet logs and delivery logs are editable from their modules. Delivery charts report entered delivery counts. The demo seed adds sample records to those modules. Run npm run seed:demo after pulling the upgrade.

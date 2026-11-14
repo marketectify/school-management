@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 
-export function Inbox({ user, onRead }) {
+export function Inbox({ user, onRead, recipient }) {
   const [rows, setRows] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [error, setError] = useState('');
@@ -26,7 +26,7 @@ export function Inbox({ user, onRead }) {
   }
   const label = id => id === user.id ? 'You' : contacts.find(row => row._id === id)?.name ?? 'School account';
   return <><h1>Messages</h1><div className="account-layout"><form className="panel" onSubmit={submit}>
-    <h2>Compose message</h2><label>Recipient<select name="to" defaultValue="" required><option value="">Choose a recipient</option>
+    <h2>Compose message</h2><label>Recipient<select name="to" defaultValue={recipient ?? ""} required><option value="">Choose a recipient</option>
       {contacts.map(row => <option key={row._id} value={row._id}>{row.name} · {row.role}</option>)}</select></label>
     <label>Message<textarea name="body" required maxLength={3000}/></label><button className="primary" disabled={busy || !contacts.length}>Send message</button>
     {notice && <p role="status">{notice}</p>}{error && <p className="error" role="alert">{error}</p>}</form>
@@ -65,4 +65,18 @@ export function RoleDashboard({ role, year, go }) {
       {rows.length ? rows.slice(0,5).map(row => <div className="bar-row" key={row._id}>
         <span>{row.name ?? row.status ?? 'Recorded marks'}</span><strong>{row.day ?? row.date ?? row.due ?? row.marks}</strong></div>) : <p className="muted">No records yet.</p>}
       </article>)}</div></>;
+}
+
+export function ActivityPage() {
+  const [entries, setEntries] = useState([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    api('workspace/activity').then(setEntries, err => setError(err.message));
+  }, []);
+  return <><h1>Activity Timeline</h1><section className="panel">
+    {error && <p className="error" role="alert">{error}</p>}
+    {entries.map(row => <article className="pop-item" key={row._id}><strong>{row.title}</strong>
+      <small>{row.kind} · {new Date(row.createdAt).toLocaleString()}</small></article>)}
+    {!entries.length && !error && <p className="muted">No activity yet.</p>}
+  </section></>;
 }

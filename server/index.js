@@ -123,7 +123,7 @@ app.get('/api/records/:collection', async (req, res) => {
 async function validatedFields(req) {
   const result = {};
   for (const { key, label, type, options } of req.record.definition.fields) {
-    const value = req.body?.[key];
+    const value = req.body?.[key] ?? { gender: 'Unspecified', category: 'Other' }[key];
     const valid = type === 'number' ? typeof value === 'number' && Number.isFinite(value) && value >= 0
       : typeof value === 'string' && value.length <= (type === 'textarea' ? 4000 : 200) &&
         (['notes', 'reference'].includes(key) || Boolean(value.trim()));
@@ -142,6 +142,7 @@ async function validatedFields(req) {
       throw Object.assign(new Error('Marks must be within the exam maximum and match the student class.'), { status: 400 });
     }
   }
+  if (req.record.key === 'fleet' && (result.onTime > result.trips || result.riders > result.seats)) throw Object.assign(new Error('On-time trips and occupied seats must fit their totals.'), { status: 400 });
   if (result.start && result.end && result.end <= result.start) throw Object.assign(new Error('End time must follow start time.'), { status: 400 });
   return result;
 }

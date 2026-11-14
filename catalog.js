@@ -7,6 +7,20 @@ const number = (key, label) => field(key, label, 'number');
 const notes = field('notes', 'Notes', 'textarea');
 
 export const catalog = {
+  loans: { label: 'Book loans', group: 'Campus', fields: [
+    ref('bookId', 'Book', 'library'), ref('studentId', 'Student', 'students'), date('date', 'Issued date'),
+    date('due', 'Due date'), select('status', 'Status', 'Issued', 'Returned', 'Reserved'),
+  ] },
+  fleet: { label: 'Fleet logs', group: 'Campus', fields: [
+    ref('routeId', 'Route', 'transport'), date('date', 'Date'), number('fuel', 'Fuel (litres)'),
+    number('distance', 'Distance (km)'), number('cost', 'Fuel cost'), number('trips', 'Trips'),
+    number('seats', 'Seats available'), number('riders', 'Seats occupied'), number('onTime', 'On-time trips'),
+    select('status', 'Status', 'Active', 'Idle', 'Service', 'Offline'),
+  ] },
+  delivery: { label: 'Delivery logs', group: 'Communication', fields: [
+    field('name', 'Campaign'), date('date', 'Date'), select('channel', 'Channel', 'SMS', 'Email', 'App Push', 'WhatsApp'),
+    number('delivered', 'Delivered'), number('failed', 'Failed'), number('pending', 'Pending'), number('queued', 'Queued'),
+  ] },
   invoices: { label: 'Invoices', group: 'Finance', fields: [
     field('name', 'Invoice title'), ref('studentId', 'Student', 'students'), number('amount', 'Amount'),
     date('due', 'Due date'), select('status', 'Status', 'Draft', 'Issued', 'Paid', 'Void'),
@@ -37,6 +51,7 @@ export const catalog = {
     field('name', 'Full name'), field('admission', 'Admission number'), ref('classId', 'Class', 'classes'),
     select('status', 'Status', 'Active', 'Inactive', 'Graduated', 'Transferred'),
     field('guardian', 'Guardian name'), field('phone', 'Contact number'),
+    select('gender', 'Gender', 'Male', 'Female', 'Other', 'Unspecified'),
     date('joined', 'Admission date'), field('year', 'Academic year'),
   ] },
   teachers: { label: 'Teachers', group: 'People', fields: [
@@ -79,6 +94,7 @@ export const catalog = {
   ] },
   library: { label: 'Library books', group: 'Campus', fields: [
     field('name', 'Title'), field('author', 'Author'), field('isbn', 'ISBN'), number('copies', 'Copies'),
+    select('category', 'Category', 'Science', 'Mathematics', 'Programming', 'Literature', 'History', 'Other'),
   ] },
   transport: { label: 'Transport routes', group: 'Campus', fields: [
     field('name', 'Route name'), field('vehicle', 'Vehicle'), field('driver', 'Driver'), field('stops', 'Stops', 'textarea'),
