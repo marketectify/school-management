@@ -51,7 +51,7 @@ async function seed() {
       date: '2026-11-06', maximum: 100 });
     for (const [index, name] of group.students.entries()) {
       const admission = 'DEMO-' + key + '0' + (index + 1);
-      const studentId = await add('students', admission, { name, admission, classId, status: 'Active',
+      const studentId = await add('students', admission, { name, admission, classId, status: 'Active', gender: 'Unspecified',
         guardian: 'Guardian of ' + name, phone: '202-555-01' + key + index, joined: '2026-08-17', year: '2026/2027' }, { admission });
       for (const [day, date] of ['2026-11-11', '2026-11-12', '2026-11-13'].entries()) {
         const status = index === 1 && day === 1 ? 'Late' : index === 3 && day === 2 ? 'Absent' : 'Present';
@@ -78,8 +78,8 @@ async function seed() {
       { name: 'Farhan Aziz', department: 'Library', position: 'Librarian', phone: '202-555-0112' },
     ],
     library: [
-      { name: 'Charlotte’s Web', author: 'E. B. White', isbn: '9780064400558', copies: 12 },
-      { name: 'The Secret Garden', author: 'Frances Hodgson Burnett', isbn: '9780141321066', copies: 8 },
+      { name: 'Charlotte’s Web', author: 'E. B. White', isbn: '9780064400558', copies: 12, category: 'Literature' },
+      { name: 'The Secret Garden', author: 'Frances Hodgson Burnett', isbn: '9780141321066', copies: 8, category: 'Literature' },
     ],
     transport: [
       { name: 'North Campus Route', vehicle: 'Bus 01', driver: 'Asad Karim', stops: 'Central Park → Town Square → School' },
@@ -96,6 +96,42 @@ async function seed() {
   };
   for (const [module, records] of Object.entries(campus)) {
     for (const record of records) await add(module, record.name, record);
+  }
+  const today = new Date();
+  const sampleBooks = [
+    ['A Brief History of Time','Stephen Hawking','9780553380163','Science',10],
+    ['Introduction to Algorithms','Thomas H. Cormen','9780262046305','Programming',9],
+    ['Calculus Made Easy','Silvanus P. Thompson','9780312185480','Mathematics',7],
+    ['The Story of the World','Susan Wise Bauer','9781933339009','History',6],
+    ['The Great Gatsby','F. Scott Fitzgerald','9780743273565','Literature',8],
+  ];
+  const students = await models.students.find({ schoolId: null, admission: /^DEMO-[678]0[1-4]$/ }).sort('admission');
+  for (const [index, student] of students.entries()) {
+    if (!student.gender) await models.students.updateOne({ _id: student._id, gender: { $exists: false } },
+      { $set: { gender: [0,2,4,7,8,10].includes(index) ? 'Female' : 'Male' } });
+  }
+  for (const [name,author,isbn,category,copies] of sampleBooks) {
+    const bookId = await add('library',name,{name,author,isbn,category,copies});
+    for (let month=0;month<12;month++) {
+      const issued = new Date(today.getFullYear(),today.getMonth()-month,1).toLocaleDateString('en-CA');
+      const due = new Date(today.getFullYear(),today.getMonth()-month,21).toLocaleDateString('en-CA');
+      for (const student of students.slice(0,1+((month+copies)%4))) {
+        await add('loans',isbn+'/'+issued+'/'+student.admission,{bookId,studentId:student._id,date:issued,due,
+          status: month===0 && student===students[0] ? 'Issued' : 'Returned'});
+      }
+    }
+  }
+  const routes = await models.transport.find({ schoolId: null, name: { $in: ['North Campus Route','East Campus Route'] } });
+  for (let offset=0;offset<7;offset++) {
+    const date = new Date(today.getFullYear(),today.getMonth(),today.getDate()-offset).toLocaleDateString('en-CA');
+    for (const [index,channel] of ['SMS','Email','App Push','WhatsApp'].entries()) {
+      await add('delivery',channel+'/'+date,{name:'Demo school update',date,channel,
+        delivered:40+index*12+offset*5+(offset%2)*16,failed:index+2,pending:index,queued:1});
+    }
+    for (const [index,route] of routes.entries()) {
+      await add('fleet',route.id+'/'+date,{routeId:route._id,date,fuel:24+offset+index*6,distance:98+offset*4+index*12,
+        cost:6800+offset*150,trips:8,seats:120,riders:100+index*4,onTime:offset%2?8:7,status:'Active'});
+    }
   }
 }
 
