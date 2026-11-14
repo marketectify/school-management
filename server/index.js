@@ -73,7 +73,15 @@ export async function readScope(user, key) {
   if (catalog[key].personal) return { ownerId: user._id };
   if (user.role === 'admin') return {};
   if (user.role === 'teacher') {
-    return ['students', 'classes', 'subjects', 'teachers', 'timetable', 'homework', 'attendance', 'exams', 'results', 'announcements'].includes(key) ? {} : null;
+    if (['submissions', 'leaves', 'sessions'].includes(key)) {
+      const teacher = await models.teachers.findOne({ schoolId: null, email: user.email });
+      const slots = teacher ? await models.timetable.find({ schoolId: null, teacherId: teacher._id }) : [];
+      if (key === 'sessions') return { periodId: { $in: slots.map(row => row._id) } };
+      const classIds = slots.map(row => row.classId);
+      const studentIds = await models.students.distinct('_id', { schoolId: null, classId: { $in: classIds } });
+      return { studentId: { $in: studentIds } };
+    }
+    return ['students', 'classes', 'subjects', 'teachers', 'timetable', 'homework', 'attendance', 'exams', 'results', 'announcements', 'submissions', 'leaves', 'sessions'].includes(key) ? {} : null;
   }
   if (key === 'announcements' || key === 'library') return {};
   const studentIds = user.studentIds;
@@ -136,6 +144,22 @@ async function validatedFields(req) {
     }
     result[key] = typeof value === 'string' ? value.trim() : value;
   }
+  for (const { key, type, options } of req.record.definition.fields) {
+    if (type === 'select' && !options.includes(result[key])) {
+      throw Object.assign(new Error('Choose a valid ' + key + '.'), { status: 400 });
+    }
+  }
+  const assignedField = req.record.key === 'sessions' ? 'periodId' : 'studentId';
+  const assignedIds = req.record.scope[assignedField]?.$in;
+  if (assignedIds && !assignedIds.some(id => id.equals(result[assignedField]))) {
+    throw Object.assign(new Error('This record is outside your assigned classes.'), { status: 403 });
+  }
+  if (req.record.key === 'submissions') {
+    const [homework, student] = await Promise.all([models.homework.findById(result.homeworkId), models.students.findById(result.studentId)]);
+    if (!homework || !student || !homework.classId.equals(student.classId)) {
+      throw Object.assign(new Error('Choose a student enrolled in this assignment class.'), { status: 400 });
+    }
+  }
   if (result.examId) {
     const [exam, student] = await Promise.all([models.exams.findById(result.examId), models.students.findById(result.studentId)]);
     if (result.marks > exam.maximum || !exam.classId.equals(student.classId)) {
@@ -148,7 +172,8 @@ async function validatedFields(req) {
 }
 
 app.post('/api/records/:collection', async (req, res) => {
-  const record = await req.record.model.create({ ...await validatedFields(req), ...req.record.scope });
+  const ownership = req.record.definition.personal ? { ownerId: req.user._id } : { schoolId: req.schoolId ?? null };
+  const record = await req.record.model.create({ ...await validatedFields(req), ...ownership });
   await recordActivity(req.user._id, req.record.definition.label + ': ' + (record.name ?? 'new record')).catch(error => console.error(error.name));
   res.status(201).json(record);
 });

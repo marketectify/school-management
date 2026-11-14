@@ -7,6 +7,7 @@ import Dashboard from './dashboard.jsx';
 import TopBar from './topbar.jsx';
 import { SidebarMenu, ModuleInfo } from './sidebar.jsx';
 import { ActivityPage, Inbox, RoleDashboard } from './portal.jsx';
+import TeacherDashboard from './teacher-dashboard.jsx';
 import './topbar.css';
 import { Avatar, Profile, Calendar } from './application.jsx';
 import { api } from './api.js';
@@ -115,7 +116,7 @@ function Records({ module, user, initialAdd, year, target }) {
   const [status, setStatus] = useState(target?.status ?? '');
   const [sort, setSort] = useState('recent');
   const [grid, setGrid] = useState(module === 'students');
-  const [editing, setEditing] = useState(initialAdd ? (module === "students" && year ? { year } : {}) : null);
+  const [editing, setEditing] = useState(initialAdd ? (target?.defaults ?? (module === "students" && year ? { year } : {})) : null);
   const [profile, setProfile] = useState(module === 'students' ? target?.id ?? '' : '');
   const [classFilter, setClassFilter] = useState('');
   const [references, setReferences] = useState({});
@@ -137,7 +138,7 @@ function Records({ module, user, initialAdd, year, target }) {
     const ref = references[field.options[0]]?.find(item => item._id === row[field.key]);
     return ref ? recordLabel(ref) : row[field.key];
   };
-  const rows = (data ?? []).filter(row => (!drilldown?.date || row.date === drilldown.date) && (!drilldown?.classId || references.students?.some(student => student._id === row.studentId && student.classId === drilldown.classId)) && (module !== "students" || !year || row.year === year) && (!status || row.status === status) && (!classFilter || row.classId === classFilter) &&
+  const rows = (data ?? []).filter(row => (!drilldown?.date || row.date === drilldown.date) && (!drilldown?.classId || references.students?.some(student => student._id === row.studentId && student.classId === drilldown.classId)) && (!drilldown?.group || row.classId === drilldown.group) && (!drilldown?.homeworkId || row.homeworkId === drilldown.homeworkId) && (!drilldown?.category || row.category === drilldown.category) && (module !== "students" || !year || row.year === year) && (!status || row.status === status) && (!classFilter || row.classId === classFilter) &&
     definition.fields.some(field => String(display(row, field)).toLowerCase().includes(query.trim().toLowerCase())));
   if (sort === 'name') rows.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
   async function save(fields) {
@@ -157,7 +158,7 @@ function Records({ module, user, initialAdd, year, target }) {
     <button className="danger" disabled={deleting === row._id} onClick={() => remove(row)}>Delete</button></div>;
   const selected = (data ?? []).find(row => row._id === profile);
   const classField = definition.fields.find(field => field.key === 'classId');
-  const editor = editing && <Editor definition={definition} values={editing} references={references} save={save} close={() => setEditing(null)} />;
+  const editor = editing && <Editor definition={definition} values={editing} references={initialAdd && target?.classId && references.students ? { ...references, students: references.students.filter(row => row.classId === target.classId) } : references} save={save} close={() => setEditing(null)} />;
   if (module === 'students' && selected) return <>
     <Profile student={selected} group={display(selected, classField)} close={() => setProfile('')}
       edit={writable ? () => setEditing(selected) : undefined} />{editor}
@@ -165,12 +166,12 @@ function Records({ module, user, initialAdd, year, target }) {
   return <>
     <div className="title"><div><p className="breadcrumbs">Dashboard / {definition.group}</p><h1>{target?.label ?? definition.label}</h1></div>
       <div className="actions"><button disabled={!rows.length} onClick={() => exportRows(definition, rows, display)}>Export CSV</button>
-      {writable && <button className="primary" onClick={() => setEditing(module === "students" && year ? { year } : {})}>{module === 'students' ? 'Add Student' : module === 'calendar' ? 'Create Event' : 'Add record'}</button>}</div></div>
+      {writable && <button className="primary" onClick={() => setEditing(target?.defaults ?? (module === "students" && year ? { year } : {}))}>{module === 'students' ? 'Add Student' : module === 'calendar' ? 'Create Event' : 'Add record'}</button>}</div></div>
     {module === 'students' && <div className="student-metrics">
       {[['Total students', data?.length ?? 0], ...['Active', 'Inactive', 'Graduated'].map(label => [label, (data ?? []).filter(row => row.status === label).length])]
         .map(([label, value]) => <article className="panel" key={label}><span className="muted">{label}</span><strong>{value}</strong></article>)}
     </div>}
-    <div className="toolbar">{drilldown?.date && <button onClick={() => setDrilldown(null)}>Clear attendance drill-down</button>}
+    <div className="toolbar">{(drilldown?.date || drilldown?.classId || drilldown?.group || drilldown?.homeworkId || drilldown?.category) && <button onClick={() => setDrilldown(null)}>Clear dashboard filter</button>}
       <input aria-label="Search records" placeholder={module === 'students' ? 'Search name, admission no, class…' : 'Search records'} value={query} onChange={event => setQuery(event.target.value)} />
       {statuses && <select aria-label="Status" value={status} onChange={event => setStatus(event.target.value)}>
         <option value="">All statuses</option>{statuses.map(value => <option key={value}>{value}</option>)}
@@ -348,8 +349,9 @@ function Workspace({ user, onLogout }) {
           {dashboard.error && <p className="error" role="alert">{dashboard.error}</p>}
           {dashboard.data && (user.role === 'admin' && view.key === 'dashboard'
             ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} years={years} schoolName={campus?.name ?? "Global International"} onYear={value => { setYear(value); localStorage.setItem("school-year", value); }} refresh={dashboard.reload} />
+            : user.role === 'teacher' || view.key === 'preview-teacher' ? <TeacherDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
-        </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : view.key === 'messages' ? <Inbox user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
+        </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : view.key === 'messages' ? <Inbox key={view.revision} user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
         : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
         : view.key === 'contacts' ? <><h1>Call</h1><section className="panel"><h2>School contacts</h2><p>Open a staff or student record for available phone numbers.</p>
           {['teachers','staff','students'].filter(key => modules.includes(key)).map(key => <button key={key} onClick={() => go(key)}>{catalog[key].label}</button>)}</section></>
