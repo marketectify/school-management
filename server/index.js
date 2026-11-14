@@ -1,4 +1,6 @@
 import express from 'express';
+import { School, workspaceRoutes, recordActivity } from './workspace.js';
+import { acceptsOrigin } from './origin.js';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import mongoose from 'mongoose';
@@ -16,7 +18,7 @@ app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     const origin = req.get('origin');
-    if (origin && (origin === 'null' || req.get('sec-fetch-site') === 'cross-site' || ![('http://' + req.get('host')), ('https://' + req.get('host'))].includes(origin))) {
+    if (!acceptsOrigin(origin, req.get('host'), req.get('sec-fetch-site'), process.env.SCHOOL_DEV_MODE === '1')) {
       return res.status(403).json({ message: 'Invalid request origin.' });
     }
     if (req.method !== 'DELETE' && !req.is('application/json')) {
@@ -33,6 +35,16 @@ app.get('/api/health', (_req, res) => {
 app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60_000, limit: 20, message: { message: 'Too many attempts. Try again later.' } }), login);
 app.post('/api/auth/logout', logout);
 app.use('/api', requireUser);
+app.use('/api/workspace', workspaceRoutes(User));
+app.use('/api', async (req, res, next) => {
+  const school = req.get('x-school-id');
+  if (!school) return next();
+  if (req.user.role !== 'admin' || !mongoose.isObjectIdOrHexString(school) || !await School.exists({ _id: school })) {
+    return res.status(403).json({ message: 'School unavailable.' });
+  }
+  req.schoolId = new mongoose.Types.ObjectId(school);
+  next();
+});
 app.get('/api/auth/me', (req, res) => res.json(publicUser(req.user)));
 
 const adminOnly = (req, res, next) => req.user.role === 'admin'
@@ -58,6 +70,7 @@ app.post('/api/users', adminOnly, async (req, res) => {
 });
 
 export async function readScope(user, key) {
+  if (catalog[key].personal) return { ownerId: user._id };
   if (user.role === 'admin') return {};
   if (user.role === 'teacher') {
     return ['students', 'classes', 'subjects', 'teachers', 'timetable', 'homework', 'attendance', 'exams', 'results', 'announcements'].includes(key) ? {} : null;
@@ -77,9 +90,14 @@ export async function readScope(user, key) {
   return null;
 }
 
+async function scopedRecords(req, key) {
+  const scope = await readScope(req.user, key);
+  return scope === null || catalog[key].personal ? scope : { ...scope, schoolId: req.schoolId ?? null };
+}
+
 app.get('/api/dashboard', async (req, res) => {
   const entries = await Promise.all(Object.entries(models).map(async ([key, model]) => {
-    const scope = await readScope(req.user, key);
+    const scope = await scopedRecords(req, key);
     return scope === null ? null : [key, await model.countDocuments(scope)];
   }));
   res.json(Object.fromEntries(entries.filter(Boolean)));
@@ -88,9 +106,9 @@ app.get('/api/dashboard', async (req, res) => {
 app.use('/api/records/:collection', async (req, res, next) => {
   const key = req.params.collection;
   if (!Object.hasOwn(models, key)) return res.status(404).json({ message: 'Module not found.' });
-  const scope = await readScope(req.user, key);
+  const scope = await scopedRecords(req, key);
   if (scope === null || (req.method !== 'GET' && req.user.role !== 'admin' &&
-      !(req.user.role === 'teacher' && catalog[key].teacherWrite))) {
+      !catalog[key].personal && !(req.user.role === 'teacher' && catalog[key].teacherWrite))) {
     return res.status(403).json({ message: 'You do not have access to this module or action.' });
   }
   req.record = { key, model: models[key], definition: catalog[key], scope };
@@ -113,7 +131,7 @@ async function validatedFields(req) {
           Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value)) ||
         (type === 'time' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) ||
         (type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) ||
-        (type === 'ref' && (!mongoose.isObjectIdOrHexString(value) || !await models[options[0]].exists({ _id: value })))) {
+        (type === 'ref' && (!mongoose.isObjectIdOrHexString(value) || !await models[options[0]].exists({ _id: value, schoolId: req.schoolId ?? null })))) {
       throw Object.assign(new Error('Enter a valid value for ' + label + '.'), { status: 400 });
     }
     result[key] = typeof value === 'string' ? value.trim() : value;
@@ -124,12 +142,14 @@ async function validatedFields(req) {
       throw Object.assign(new Error('Marks must be within the exam maximum and match the student class.'), { status: 400 });
     }
   }
-  if (result.start && result.end <= result.start) throw Object.assign(new Error('End time must follow start time.'), { status: 400 });
+  if (result.start && result.end && result.end <= result.start) throw Object.assign(new Error('End time must follow start time.'), { status: 400 });
   return result;
 }
 
 app.post('/api/records/:collection', async (req, res) => {
-  res.status(201).json(await req.record.model.create(await validatedFields(req)));
+  const record = await req.record.model.create({ ...await validatedFields(req), ...req.record.scope });
+  await recordActivity(req.user._id, req.record.definition.label + ': ' + (record.name ?? 'new record')).catch(error => console.error(error.name));
+  res.status(201).json(record);
 });
 app.put('/api/records/:collection/:id', async (req, res) => {
   const doc = await req.record.model.findOneAndUpdate(
@@ -173,7 +193,12 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: 'Something went wrong. Try again.' });
 });
 
-await connect();
+try {
+  await connect();
+} catch (error) {
+  console.error('Could not connect to MongoDB (' + error.name + '). Check MONGODB_URI, database credentials and network access.');
+  process.exit(1);
+}
 await Promise.all([User.init(), Session.init(), ...Object.values(models).map(model => model.init())]);
 const port = process.env.PORT ?? 4000;
 app.listen(port, () => console.log('School management API listening on port ' + port));

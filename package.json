@@ -6,11 +6,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "concurrently --kill-others \"node --env-file-if-exists=.env --watch server/index.js\" \"vite\" ",
+    "dev": "concurrently --kill-others \"node --env-file-if-exists=.env server/dev.js\" \"vite\" ",
     "build": "vite build",
     "start": "node --env-file-if-exists=.env server/index.js",
     "seed": "node --env-file-if-exists=.env server/seed.js",
-    "test": "node --test"
+    "test": "node --test",
+    "seed:demo": "node --env-file-if-exists=.env server/seed-demo.js"
   },
   "dependencies": {
     "express": "^5.1.0",

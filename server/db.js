@@ -29,6 +29,8 @@ export const models = Object.fromEntries(Object.entries(catalog).map(([key, defi
           required: !['notes', 'reference'].includes(name),
           ...(type === 'select' ? { enum: options } : {}) },
   ]));
+  if (definition.personal) fields.ownerId = { type: mongoose.Schema.Types.ObjectId, required: true, index: true };
+  if (!definition.personal) fields.schoolId = { type: mongoose.Schema.Types.ObjectId, index: true };
   const schema = new mongoose.Schema(fields, { timestamps: true, versionKey: false });
   if (definition.unique) {
     schema.index(Object.fromEntries(definition.unique.map(name => [name, 1])), { unique: true });

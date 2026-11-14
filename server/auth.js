@@ -20,7 +20,7 @@ export async function verifyPassword(password, hash) {
 }
 
 const fallbackHash = '0'.repeat(32) + ':' + '0'.repeat(128);
-export const publicUser = user => ({ name: user.name, email: user.email, role: user.role });
+export const publicUser = user => ({ id: user.id, name: user.name, email: user.email, role: user.role, studentIds: user.studentIds });
 
 export async function login(req, res) {
   const { email, password } = req.body ?? {};

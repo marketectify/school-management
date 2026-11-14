@@ -2,16 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { catalog, roles } from '../catalog.js';
 import './style.css';
+import './upgrade.css';
+import Dashboard from './dashboard.jsx';
+import TopBar from './topbar.jsx';
+import { Inbox, RoleDashboard } from './portal.jsx';
+import './topbar.css';
+import { Avatar, Profile, Calendar } from './application.jsx';
+import { api } from './api.js';
 
-async function api(path, method = 'GET', body) {
-  const response = await fetch('/api/' + path, {
-    method, headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw Object.assign(new Error(data?.message || 'Request failed.'), { status: response.status });
-  return data;
-}
 
 function Login({ onLogin }) {
   const [error, setError] = useState('');
@@ -35,7 +33,7 @@ function Login({ onLogin }) {
 }
 
 function Brand() {
-  return <div className="brand"><span aria-hidden="true">S</span> School Management</div>;
+  return <div className="brand"><span aria-hidden="true">S</span><span className="brand-name">School Management</span></div>;
 }
 
 function useData(path) {
@@ -108,18 +106,20 @@ function Editor({ definition, values, references, close, save }) {
   </section></div>;
 }
 
-function Records({ module, user }) {
+function Records({ module, user, initialAdd, year, target }) {
   const definition = catalog[module];
   const { data, error, loading, reload } = useData('records/' + module);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(target?.name ?? '');
   const [status, setStatus] = useState('');
   const [sort, setSort] = useState('recent');
   const [grid, setGrid] = useState(module === 'students');
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(initialAdd ? (module === "students" && year ? { year } : {}) : null);
+  const [profile, setProfile] = useState(module === 'students' ? target?.id ?? '' : '');
+  const [classFilter, setClassFilter] = useState('');
   const [references, setReferences] = useState({});
   const [actionError, setActionError] = useState('');
   const [deleting, setDeleting] = useState('');
-  const writable = user.role === 'admin' || (user.role === 'teacher' && definition.teacherWrite);
+  const writable = definition.personal || user.role === 'admin' || (user.role === 'teacher' && definition.teacherWrite);
   const statuses = definition.fields.find(field => field.key === 'status')?.options;
   useEffect(() => {
     let active = true;
@@ -135,7 +135,7 @@ function Records({ module, user }) {
     const ref = references[field.options[0]]?.find(item => item._id === row[field.key]);
     return ref ? recordLabel(ref) : row[field.key];
   };
-  const rows = (data ?? []).filter(row => (!status || row.status === status) &&
+  const rows = (data ?? []).filter(row => (module !== "students" || !year || row.year === year) && (!status || row.status === status) && (!classFilter || row.classId === classFilter) &&
     definition.fields.some(field => String(display(row, field)).toLowerCase().includes(query.trim().toLowerCase())));
   if (sort === 'name') rows.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
   async function save(fields) {
@@ -153,14 +153,28 @@ function Records({ module, user }) {
   }
   const controls = row => writable && <div className="actions"><button onClick={() => setEditing(row)}>Edit</button>
     <button className="danger" disabled={deleting === row._id} onClick={() => remove(row)}>Delete</button></div>;
+  const selected = (data ?? []).find(row => row._id === profile);
+  const classField = definition.fields.find(field => field.key === 'classId');
+  const editor = editing && <Editor definition={definition} values={editing} references={references} save={save} close={() => setEditing(null)} />;
+  if (module === 'students' && selected) return <>
+    <Profile student={selected} group={display(selected, classField)} close={() => setProfile('')}
+      edit={writable ? () => setEditing(selected) : undefined} />{editor}
+  </>;
   return <>
-    <div className="title"><div><p className="section-name">{definition.group}</p><h1>{definition.label}</h1></div>
+    <div className="title"><div><p className="breadcrumbs">Dashboard / {definition.group}</p><h1>{definition.label}</h1></div>
       <div className="actions"><button disabled={!rows.length} onClick={() => exportRows(definition, rows, display)}>Export CSV</button>
-      {writable && <button className="primary" onClick={() => setEditing({})}>Add record</button>}</div></div>
+      {writable && <button className="primary" onClick={() => setEditing(module === "students" && year ? { year } : {})}>{module === 'students' ? 'Add Student' : module === 'calendar' ? 'Create Event' : 'Add record'}</button>}</div></div>
+    {module === 'students' && <div className="student-metrics">
+      {[['Total students', data?.length ?? 0], ...['Active', 'Inactive', 'Graduated'].map(label => [label, (data ?? []).filter(row => row.status === label).length])]
+        .map(([label, value]) => <article className="panel" key={label}><span className="muted">{label}</span><strong>{value}</strong></article>)}
+    </div>}
     <div className="toolbar">
-      <input aria-label="Search records" placeholder="Search records" value={query} onChange={event => setQuery(event.target.value)} />
+      <input aria-label="Search records" placeholder={module === 'students' ? 'Search name, admission no, class…' : 'Search records'} value={query} onChange={event => setQuery(event.target.value)} />
       {statuses && <select aria-label="Status" value={status} onChange={event => setStatus(event.target.value)}>
         <option value="">All statuses</option>{statuses.map(value => <option key={value}>{value}</option>)}
+      </select>}
+      {module === 'students' && <select aria-label="Class" value={classFilter} onChange={event => setClassFilter(event.target.value)}>
+        <option value="">All classes</option>{references.classes?.map(row => <option key={row._id} value={row._id}>{recordLabel(row)}</option>)}
       </select>}
       {definition.fields.some(field => field.key === 'name') && <select aria-label="Sort records" value={sort} onChange={event => setSort(event.target.value)}>
         <option value="recent">Recently added</option><option value="name">Name (A–Z)</option>
@@ -170,16 +184,26 @@ function Records({ module, user }) {
     {(error || actionError) && <p className="error" role="alert">{error || actionError}</p>}
     {loading ? <p role="status">Loading records…</p> : !error && <>
       <p className="muted">{rows.length} of {data?.length ?? 0} records</p>
-      {!rows.length ? <div className="panel">No matching records.</div> : grid ? <div className="grid">{rows.map(row =>
-        <article className="panel" key={row._id}><span className="pill">{row.status}</span><h2>{row.name}</h2>
-          <dl>{definition.fields.filter(field => !['status', 'name'].includes(field.key)).map(field =>
-            <div key={field.key}><dt>{field.label}</dt><dd>{display(row, field)}</dd></div>)}</dl>{controls(row)}</article>)}</div>
+      {module === 'calendar' && <Calendar rows={rows} open={setEditing} create={date => setEditing({ date })} />}
+      {module === 'calendar' ? <div className="grid application-grid" style={{ marginTop: 12 }}>
+        {rows.map(row => <article className="panel" key={row._id}><h2>{row.name}</h2><p>{row.date} · {row.start}</p>{controls(row)}</article>)}
+      </div> : !rows.length ? <div className="panel">No matching records.</div> : grid ? <div className="grid">{rows.map(row =>
+        <article className="panel student-card" key={row._id}>
+          <div className="student-card-top"><span className="muted">{row.admission}</span><span className="pill">{row.status}</span></div>
+          <div className="student-name"><Avatar name={row.name} /><div><h2>{row.name}</h2><span className="muted">{display(row, classField)} · {row.year}</span></div></div>
+          <dl><div><dt>Guardian</dt><dd>{row.guardian}</dd></div><div><dt>Phone</dt><dd>{row.phone}</dd></div></dl>
+          <div className="actions"><button onClick={() => setProfile(row._id)}>View profile</button>
+            {writable && <button onClick={() => setEditing(row)}>Edit</button>}</div>
+        </article>)}</div>
+        : module === 'notes' ? <div className="grid application-grid">{rows.map(row =>
+          <article className="panel" key={row._id}><span className="pill">{row.priority}</span><h2>{row.name}</h2>
+            <p className="note-body">{row.body}</p>{controls(row)}</article>)}</div>
         : <div className="table-wrap"><table><thead><tr>{definition.fields.map(field =>
-          <th key={field.key}>{field.label}</th>)}{writable && <th>Actions</th>}</tr></thead><tbody>{rows.map(row =>
+          <th key={field.key}>{field.label}</th>)}{(writable || module === 'students') && <th>Actions</th>}</tr></thead><tbody>{rows.map(row =>
           <tr key={row._id}>{definition.fields.map(field => <td key={field.key}>{display(row, field)}</td>)}
-          {writable && <td>{controls(row)}</td>}</tr>)}</tbody></table></div>}
+          {(writable || module === 'students') && <td>{module === 'students' && <button onClick={() => setProfile(row._id)}>View profile</button>}{controls(row)}</td>}</tr>)}</tbody></table></div>}
     </>}
-    {editing && <Editor definition={definition} values={editing} references={references} save={save} close={() => setEditing(null)} />}
+    {editor}
   </>;
 }
 
@@ -229,37 +253,110 @@ function Accounts() {
     </section></div></>;
 }
 
+const groupOrder = ['Application', 'People', 'Academics', 'Finance', 'Campus', 'Communication'];
+const groupIcons = { Application: '▦', People: '♙', Academics: '▤', Finance: '◈', Campus: '⌂', Communication: '◇' };
+
 function Workspace({ user, onLogout }) {
   const dashboard = useData('dashboard');
-  const [page, setPage] = useState('dashboard');
+  const [view, setView] = useState({ key: 'dashboard', revision: 0 });
   const [nav, setNav] = useState(false);
   const [error, setError] = useState('');
+  const [layout, setLayout] = useState(() => localStorage.getItem('school-layout') || 'default');
+  const [year,setYear] = useState(() => localStorage.getItem('school-year') ?? '');
+  const [years,setYears] = useState([]);
+  const [schools,setSchools] = useState([]);
+  const [school,setSchool] = useState(() => localStorage.getItem('school-campus') || '');
+  const [schoolOpen,setSchoolOpen] = useState(false);
+  const [addingSchool,setAddingSchool] = useState(false);
+  const [refresh,setRefresh] = useState(0);
   const modules = Object.keys(dashboard.data ?? {});
-  const groups = [...new Set(modules.map(key => catalog[key].group))];
-  function go(key) { setPage(key); setNav(false); if (key === 'dashboard') dashboard.reload(); }
-  return <div className="layout">
-    <aside className={nav ? 'open' : ''}><Brand /><nav aria-label="School modules">
-      <button aria-current={page === 'dashboard' ? 'page' : undefined} onClick={() => go('dashboard')}>Dashboard</button>
-      {groups.map(group => <section key={group}><h2>{group}</h2>{modules.filter(key => catalog[key].group === group)
-        .map(key => <button key={key} aria-current={page === key ? 'page' : undefined} onClick={() => go(key)}>{catalog[key].label}</button>)}</section>)}
-      {user.role === 'admin' && <section><h2>Administration</h2>
-        <button aria-current={page === 'accounts' ? 'page' : undefined} onClick={() => go('accounts')}>User accounts</button></section>}
-    </nav></aside>
+  const groups = groupOrder.filter(group => modules.some(key => catalog[key].group === group));
+  const campus = schools.find(row => row._id === school);
+  useEffect(() => {
+    api('workspace/schools').then(setSchools, err => setError(err.message));
+  }, []);
+  useEffect(() => {
+    let active = true;
+    api('records/students').then(rows => {
+      if (active) setYears([...new Set(rows.map(row => row.year))].sort().reverse());
+    }, () => { if (active) setYears([]); });
+    return () => { active = false; };
+  }, [school,refresh]);
+  function go(key, add = false, target) {
+    setView(previous => ({ key, add, target, revision: previous.revision + 1 }));
+    setNav(false);
+    setRefresh(value => value + 1);
+    if (key === 'dashboard') dashboard.reload();
+  }
+  function switchSchool(value) {
+    if (value) localStorage.setItem('school-campus',value); else localStorage.removeItem('school-campus');
+    localStorage.removeItem('school-year');
+    setYear(''); setSchool(value); setSchoolOpen(false); go('dashboard');
+  }
+  async function addSchool(event) {
+    event.preventDefault(); setError('');
+    try {
+      const row = await api('workspace/schools','POST',Object.fromEntries(new FormData(event.currentTarget)));
+      setSchools(previous => [...previous,row]); setAddingSchool(false); switchSchool(row._id);
+    } catch (err) { setError(err.message); }
+  }
+  function setDisplay(value) {
+    localStorage.setItem('school-layout', value);
+    setLayout(value);
+  }
+  async function logout() {
+    try { await api('auth/logout','POST',{}); localStorage.removeItem('school-campus'); onLogout(); }
+    catch (err) { setError(err.message); }
+  }
+  function link(key, label, icon) {
+    return <button key={key} title={label} aria-current={view.key === key ? 'page' : undefined} onClick={() => go(key)}>
+      <span className="nav-icon" aria-hidden="true">{icon}</span><span>{label}</span></button>;
+  }
+  return <div className={'layout ' + layout} dir={layout === 'rtl' ? 'rtl' : 'ltr'}>
+    <aside className={nav ? 'open' : ''}><Brand />
+      <div className="school-picker"><button className="school-name" aria-expanded={schoolOpen} onClick={() => setSchoolOpen(!schoolOpen)}>
+        <span className="nav-icon">⌂</span><span><strong>{campus?.name ?? 'Global International'}</strong><small>{campus?.campus ?? 'Primary campus'}</small></span><span>⌄</span></button>
+        {schoolOpen && <div className="school-options"><h2>Switch school</h2><button onClick={() => switchSchool('')}>Global International {school === '' && '✓'}</button>
+          {schools.map(row => <button onClick={() => switchSchool(row._id)} key={row._id}>{row.name} {school === row._id && '✓'}<small>{row.campus}</small></button>)}
+          {user.role === 'admin' && <button onClick={() => { setAddingSchool(true); setSchoolOpen(false); }}>＋ Add new school</button>}</div>}
+      </div>
+      <nav aria-label="School modules"><h2>Main</h2>
+      {link('dashboard', user.role === 'admin' ? 'Admin Dashboard' : user.role[0].toUpperCase() + user.role.slice(1) + ' Dashboard','⌂')}
+      {user.role === 'admin' && ['teacher','student','parent'].map(role => link('preview-' + role,role[0].toUpperCase() + role.slice(1) + ' Dashboard','▦'))}
+      {link('messages','Messages','✉')}
+      {groups.map(group => <section key={group}><h2>{group === 'People' ? 'People & admission' : group}</h2>
+        {modules.filter(key => catalog[key].group === group).map(key => link(key, catalog[key].label, groupIcons[group]))}</section>)}
+      {user.role === 'admin' && <section><h2>Administration</h2>{link('accounts', 'User accounts', '⚙')}</section>}
+      </nav>
+      <div className="sidebar-account"><span className="top-avatar">{user.name[0]}</span><button onClick={() => go('profile')}>{user.name}<small>{user.role}</small></button></div>
+    </aside>
     <div className="workspace">
-      <header><button className="mobile-menu" aria-expanded={nav} onClick={() => setNav(!nav)}>Menu</button>
-        <div className="identity"><strong>{user.name}</strong><span>{user.role}</span></div>
-        <button onClick={async () => { try { await api('auth/logout', 'POST', {}); onLogout(); }
-          catch (err) { setError(err.message); } }}>Sign out</button></header>
+      <TopBar user={user} go={go} modules={modules} year={year} setYear={value => { setYear(value); localStorage.setItem('school-year',value); }}
+        years={years} layout={layout} setLayout={setDisplay} nav={nav} setNav={setNav} logout={logout} school={school} refresh={refresh} />
       <main className="content">{error && <p className="error" role="alert">{error}</p>}
-        {page === 'dashboard' ? <>
-          <p className="section-name">School overview</p><h1 className="capitalize">{user.role} dashboard</h1>
+        {view.key === 'dashboard' || view.key.startsWith('preview-') ? <>
+          <p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
+          <div className="title dashboard-heading"><h1 className="capitalize">{view.key.startsWith('preview-') ? view.key.slice(8) : user.role} Dashboard</h1>
+            <div className="actions"><button onClick={dashboard.reload}>Refresh</button><button onClick={() => window.print()}>Print / PDF</button>
+            {user.role === 'admin' && <button className="primary" onClick={() => go('students',true)}>＋ Add Student</button>}</div></div>
           {dashboard.loading && <p role="status">Loading dashboard…</p>}
           {dashboard.error && <p className="error" role="alert">{dashboard.error}</p>}
-          <div className="grid stats">{modules.map(key => <button className="panel stat" key={key} onClick={() => go(key)}>
-            <span>{catalog[key].label}</span><strong>{dashboard.data[key]}</strong></button>)}</div>
-        </> : page === 'accounts' ? <Accounts /> : <Records key={page} module={page} user={user} />}
+          {dashboard.data && (user.role === 'admin' && view.key === 'dashboard'
+            ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} />
+            : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
+        </> : view.key === 'accounts' ? <Accounts /> : view.key === 'messages' ? <Inbox user={user} onRead={() => setRefresh(value => value + 1)} />
+        : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
+        : view.key === 'contacts' ? <><h1>Call</h1><section className="panel"><h2>School contacts</h2><p>Open a staff or student record for available phone numbers.</p>
+          {['teachers','staff','students'].filter(key => modules.includes(key)).map(key => <button key={key} onClick={() => go(key)}>{catalog[key].label}</button>)}</section></>
+        : <Records key={view.revision} module={view.key} user={user} initialAdd={view.add} year={year} target={view.target} />}
       </main>
     </div>
+    {addingSchool && <div className="overlay"><section className="modal" role="dialog" aria-modal="true" aria-label="Add new school">
+      <h2>Add new school</h2><form onSubmit={addSchool}><label>School name<input name="name" maxLength={120} required /></label>
+        <label>Campus name<input name="campus" maxLength={120} required /></label>
+        {error && <p className="error" role="alert">{error}</p>}
+        <div className="actions"><button type="button" onClick={() => setAddingSchool(false)}>Cancel</button><button className="primary">Add school</button></div></form>
+      </section></div>}
   </div>;
 }
 

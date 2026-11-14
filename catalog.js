@@ -7,6 +7,26 @@ const number = (key, label) => field(key, label, 'number');
 const notes = field('notes', 'Notes', 'textarea');
 
 export const catalog = {
+  invoices: { label: 'Invoices', group: 'Finance', fields: [
+    field('name', 'Invoice title'), ref('studentId', 'Student', 'students'), number('amount', 'Amount'),
+    date('due', 'Due date'), select('status', 'Status', 'Draft', 'Issued', 'Paid', 'Void'),
+  ] },
+  tickets: { label: 'Tickets', group: 'Application', personal: true, fields: [
+    field('name', 'Subject'), field('body', 'Details', 'textarea'), select('status', 'Status', 'Open', 'Resolved'),
+  ] },
+  files: { label: 'Files', group: 'Application', personal: true, fields: [
+    field('name', 'Document name'), field('link', 'Document URL', 'url'), notes,
+  ] },
+  calendar: { label: 'Calendar', group: 'Application', personal: true, fields: [
+    field('name', 'Event'), date('date', 'Date'), field('start', 'Start time', 'time'), notes,
+  ] },
+  todos: { label: 'To Do', group: 'Application', personal: true, fields: [
+    field('name', 'Task'), date('due', 'Due date'), select('status', 'Status', 'Pending', 'Done'),
+    select('priority', 'Priority', 'Low', 'Medium', 'High'), notes,
+  ] },
+  notes: { label: 'Notes', group: 'Application', personal: true, fields: [
+    field('name', 'Title'), field('body', 'Note', 'textarea'), select('priority', 'Priority', 'Low', 'Medium', 'High'),
+  ] },
   classes: { label: 'Classes & sections', group: 'Academics', fields: [
     field('name', 'Class name'), field('section', 'Section'), field('room', 'Classroom'),
   ] },
