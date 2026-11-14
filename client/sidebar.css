@@ -33,3 +33,15 @@
 .mini>.preskool-sidebar .sidebar-brand{padding:7px;flex-direction:column}.mini>.preskool-sidebar .preskool-menu{padding:7px}.mini>.preskool-sidebar .nav-entry{justify-content:center;padding:4px}
 @media(max-width:750px){.layout,.layout.mini{display:block}.layout>.preskool-sidebar{display:none}.layout>.preskool-sidebar.open{display:flex;width:min(320px,90vw)}}
 @media print{.layout>.preskool-sidebar{display:none}}
+
+.preskool-sidebar .school-name[aria-expanded=true]{border-color:#aab7ff}
+.preskool-sidebar .school-options{margin-top:4px;padding:10px;border-radius:18px;box-shadow:0 20px 32px #172a4930;background:var(--surface)}
+.preskool-sidebar .school-options h2{padding:7px 10px 10px;letter-spacing:.055em;font-size:.75rem}
+.preskool-sidebar .school-options .school-option{display:flex;align-items:center;gap:12px;padding:8px 9px;width:100%;min-height:56px;border-radius:12px;text-align:start}
+.school-options .school-option[aria-pressed=true]{background:var(--sb-active);color:var(--sb-ink)}
+.school-options .school-option strong{display:block;font-size:.94rem;font-weight:650}.school-options .school-option small{font-size:.79rem}
+.school-options .school-crest,.school-monogram{display:grid;place-items:center;flex:none;width:39px;height:39px;border-radius:11px}
+.school-monogram{background:#08a783;color:white;font-weight:750}.school-color-1{background:#efa10b}.school-color-2{background:#5570df}.school-color-3{background:#ab57ce}
+.school-check{margin-inline-start:auto;color:var(--sb-blue)}
+.school-add-wrap{margin-top:8px;border-top:1px solid var(--sb-line);padding-top:7px}
+.school-options .school-add{color:var(--sb-blue)}.school-add .school-monogram{background:var(--sb-active);color:var(--sb-blue);border:1px dashed #b1bdff}
