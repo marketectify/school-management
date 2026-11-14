@@ -35,5 +35,7 @@ export const models = Object.fromEntries(Object.entries(catalog).map(([key, defi
   if (definition.unique) {
     schema.index(Object.fromEntries(definition.unique.map(name => [name, 1])), { unique: true });
   }
-  return [key, mongoose.model(key, schema, key)];
+  // Login sessions already use the sessions collection.
+  const collection = key === 'sessions' ? 'class_sessions' : key;
+  return [key, mongoose.model(key, schema, collection)];
 }));
