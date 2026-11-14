@@ -46,3 +46,17 @@ The current release covers these workflows. Preskool's full ERP scope additional
 | PUT, DELETE | /api/records/:collection/:id | Update or delete a record |
 
 The shared module definitions in `catalog.js` drive the React forms and Mongoose schemas. Server-side access controls and validation are in `server/index.js`.
+
+## Demo data
+
+Run `npm run seed:demo` against the configured demo database to add 12 fictional students and linked records across all school modules. This command uses the existing `MONGODB_URI` and is separate from administrator setup. Run it again to restore missing demo records. Existing records are preserved.
+
+## Workspace screens
+
+Calendar events, To Do items and Notes are private to the signed-in account. The demo seed adds an example of each for the administrator identified by SEED_ADMIN_EMAIL. The admin dashboard uses saved attendance, enrollment, fees and exam marks. Student profiles include overview, attendance, results and fees.
+
+## Top bar and role dashboards
+
+The top bar provides record search, academic-year selection, country formatting for notifications, Quick Add, layout choices, notifications, internal messages, app shortcuts and account details. Admins can add schools and switch between their record sets. Existing records belong to the primary campus. School accounts and messaging remain shared, and teacher, student and parent sign-ins currently use the primary campus.
+
+Admin accounts can preview each dashboard layout with school data. Actual student and parent sessions remain limited to their linked student records. Email opens the internal inbox, Call opens the contact directory, and Files stores document links. This release uses neither external mail delivery nor video calling or file uploads.
