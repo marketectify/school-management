@@ -7,6 +7,20 @@ const number = (key, label) => field(key, label, 'number');
 const notes = field('notes', 'Notes', 'textarea');
 
 export const catalog = {
+  goals: { label: 'Goals & Targets', group: 'Application', personal: true, fields: [
+    field('name','Goal'), select('metric','Measure','Attendance','Marks','Study hours','Assignment completion','Books read'), number('target','Target'),
+  ] },
+  study: { label: 'Study Log', group: 'Application', personal: true, fields: [
+    field('name','Study activity'), date('date','Date'), number('minutes','Minutes'),
+  ] },
+  libraryRequests: { label: 'Library Requests', group: 'Campus', personal: true, fields: [
+    field('name','Book title'), select('requestType','Request','Reserve','Renew'), date('date','Request date'),
+  ] },
+  studentTransport: { label: 'Transport Assignments', group: 'Campus', fields: [
+    ref('studentId','Student','students'), ref('routeId','Route','transport'), field('name','Pickup stop'),
+    field('pickup','Pickup time','time'), field('drop','Drop time','time'), field('seat','Seat'), notes,
+  ] },
+
   submissions: { label: 'Assignment Submissions', group: 'Academics', teacherWrite: true, unique: ['homeworkId', 'studentId'], fields: [
     ref('homeworkId', 'Assignment', 'homework'), ref('studentId', 'Student', 'students'), date('date', 'Submitted on'),
     select('status', 'Status', 'Submitted', 'Graded'), notes,
