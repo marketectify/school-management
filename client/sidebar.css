@@ -1,0 +1,28 @@
+.layout{grid-template-columns:clamp(252px,18vw,344px) minmax(0,1fr)}
+.layout>.preskool-sidebar{--sb-bg:#f5f7f9;--sb-text:#737e93;--sb-ink:#1d2a49;--sb-line:#e4e9f2;--sb-icon:#e8ebef;--sb-active:#e4eaf9;--sb-blue:#3958f1;display:flex;gap:0;padding:0;background:var(--sb-bg);border-color:var(--sb-line);overflow:visible}
+.dark>.preskool-sidebar{--sb-bg:#161a2a;--sb-text:#b1bad0;--sb-ink:#f1f4ff;--sb-line:#2c344d;--sb-icon:#252c42;--sb-active:#283456;--sb-blue:#a4b4ff}
+.sidebar-brand{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:72px;padding:12px 15px;border-bottom:1px solid var(--sb-line);color:var(--sb-ink)}
+.sidebar-brand button{background:transparent;border:0}
+.sidebar-brand .brand>span:first-child{border-radius:50%;background:linear-gradient(135deg,#2e49d8,#5e84ff);box-shadow:inset 0 0 0 3px #ffffff55;width:40px;height:40px}
+.preskool-sidebar .school-picker{margin:27px 15px 18px}.preskool-sidebar .school-name{min-height:66px;border-radius:15px;margin:0;color:var(--sb-ink);box-shadow:0 2px 4px #20284408}
+.preskool-sidebar .school-name .nav-icon{width:40px;height:40px;background:#5570e51b;color:var(--sb-blue);border-radius:12px}
+.preskool-sidebar .school-options{z-index:8}
+.preskool-menu{padding:3px 12px 12px;scrollbar-width:thin;scrollbar-color:#a8b3c67a transparent;text-align:start}
+.preskool-menu h2{margin:16px 16px 9px;color:var(--sb-text);font-size:.76rem;font-weight:750;letter-spacing:.055em}
+.preskool-menu section+section{margin-top:25px}
+.preskool-menu .nav-entry{display:flex;align-items:center;gap:12px;min-height:53px;width:100%;border:1px solid transparent;border-radius:14px;background:none;color:var(--sb-text);padding:6px 9px;text-align:start;font-size:.94rem}
+.dark .preskool-menu button.nav-entry{background:transparent}
+.preskool-menu .nav-entry:hover{background:var(--sb-icon);border-color:transparent;color:var(--sb-ink)}
+.preskool-menu .nav-entry.nav-expanded{border-color:var(--sb-blue);color:var(--sb-ink);box-shadow:0 0 0 1px var(--sb-blue)}
+.preskool-menu .nav-entry[aria-current=page]{background:var(--sb-active);color:var(--sb-blue);font-weight:660;box-shadow:0 3px 9px #121c4212}
+.sidebar-tile{display:grid;place-items:center;background:var(--sb-icon);border-radius:12px;width:39px;height:39px;flex:none;font-size:1.08rem}
+.nav-expanded .sidebar-tile,[aria-current=page] .sidebar-tile{background:#526aea24;color:var(--sb-blue)}
+.sidebar-label{flex:1}.sidebar-toggle{margin-inline-end:4px;font-weight:650;color:var(--sb-text)}
+.sidebar-children .nav-entry{min-height:39px;padding-inline-start:30px}.sidebar-children .sidebar-children .nav-entry{padding-inline-start:45px}.sidebar-children .sidebar-children .sidebar-children .nav-entry{padding-inline-start:61px}
+.preskool-sidebar .sidebar-account{margin:0;padding:14px 15px;border:0;border-top:1px solid var(--sb-line);border-radius:0;background:var(--sb-bg)}
+.sidebar-account .sidebar-profile{display:flex;align-items:center;gap:10px;width:100%;text-align:start;border:1px solid var(--sb-line);border-radius:14px;background:var(--surface);color:var(--sb-ink);padding:9px}
+.sidebar-profile>span:last-child{flex:1}.sidebar-profile .top-avatar{width:36px;height:36px;border-radius:10px}
+.mini>.preskool-sidebar .sidebar-label,.mini>.preskool-sidebar .sidebar-toggle,.mini>.preskool-sidebar .sidebar-children{display:none}
+.mini>.preskool-sidebar .sidebar-brand{padding:7px;flex-direction:column}.mini>.preskool-sidebar .preskool-menu{padding:7px}.mini>.preskool-sidebar .nav-entry{justify-content:center;padding:4px}
+@media(max-width:750px){.layout,.layout.mini{display:block}.layout>.preskool-sidebar{display:none}.layout>.preskool-sidebar.open{display:flex;width:min(320px,90vw)}}
+@media print{.layout>.preskool-sidebar{display:none}}

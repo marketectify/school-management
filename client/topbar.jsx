@@ -6,7 +6,7 @@ const apps = [['Calendar','calendar','▦'],['Email','messages','✉'],['Chat','
 const regions = [['🇺🇸','United States','en-US'],['🇵🇰','Pakistan','en-PK'],['🇬🇧','United Kingdom','en-GB'],['🇫🇷','France','fr-FR'],['🇪🇸','Spain','es-ES'],['🇩🇪','Germany','de-DE']];
 const date = (value, locale) => new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 
-export default function TopBar({ user, go, modules, year, setYear, years, layout, setLayout, nav, setNav, logout, school, refresh }) {
+export default function TopBar({ user, go, modules, year, setYear, years, layout, setLayout, nav, setNav, logout, school, refresh, menuRequest }) {
   const [menu, setMenu] = useState('');
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState([]);
@@ -18,6 +18,7 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
   const [contacts, setContacts] = useState([]);
   const [error, setError] = useState('');
   const root = useRef(null);
+  useEffect(() => { if (menuRequest) setMenu(menuRequest.key); }, [menuRequest]);
   const search = useRef(null);
   useEffect(() => {
     function click(event) { if (!root.current?.contains(event.target)) setMenu(''); }

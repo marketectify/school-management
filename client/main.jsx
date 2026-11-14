@@ -5,6 +5,7 @@ import './style.css';
 import './upgrade.css';
 import Dashboard from './dashboard.jsx';
 import TopBar from './topbar.jsx';
+import { SidebarMenu, ModuleInfo } from './sidebar.jsx';
 import { ActivityPage, Inbox, RoleDashboard } from './portal.jsx';
 import './topbar.css';
 import { Avatar, Profile, Calendar } from './application.jsx';
@@ -111,7 +112,7 @@ function Records({ module, user, initialAdd, year, target }) {
   const { data, error, loading, reload } = useData('records/' + module);
   const [drilldown,setDrilldown] = useState(target);
   const [query, setQuery] = useState(target?.name ?? '');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(target?.status ?? '');
   const [sort, setSort] = useState('recent');
   const [grid, setGrid] = useState(module === 'students');
   const [editing, setEditing] = useState(initialAdd ? (module === "students" && year ? { year } : {}) : null);
@@ -162,7 +163,7 @@ function Records({ module, user, initialAdd, year, target }) {
       edit={writable ? () => setEditing(selected) : undefined} />{editor}
   </>;
   return <>
-    <div className="title"><div><p className="breadcrumbs">Dashboard / {definition.group}</p><h1>{definition.label}</h1></div>
+    <div className="title"><div><p className="breadcrumbs">Dashboard / {definition.group}</p><h1>{target?.label ?? definition.label}</h1></div>
       <div className="actions"><button disabled={!rows.length} onClick={() => exportRows(definition, rows, display)}>Export CSV</button>
       {writable && <button className="primary" onClick={() => setEditing(module === "students" && year ? { year } : {})}>{module === 'students' ? 'Add Student' : module === 'calendar' ? 'Create Event' : 'Add record'}</button>}</div></div>
     {module === 'students' && <div className="student-metrics">
@@ -208,7 +209,7 @@ function Records({ module, user, initialAdd, year, target }) {
   </>;
 }
 
-function Accounts() {
+function Accounts({ roleFilter }) {
   const { data, error, loading, reload } = useData('users');
   const students = useData('records/students');
   const [role, setRole] = useState('teacher');
@@ -231,7 +232,7 @@ function Accounts() {
     } catch (err) { setErrorText(err.message); }
     finally { setBusy(false); }
   }
-  return <><h1>User accounts</h1><div className="account-layout">
+  return <><h1>{roleFilter === "parent" ? "Parents" : "User accounts"}</h1><div className="account-layout">
     <form className="panel" onSubmit={submit}><h2>Create account</h2>
       <label>Name<input name="name" maxLength={120} required /></label>
       <label>Email<input name="email" type="email" maxLength={254} required /></label>
@@ -249,13 +250,22 @@ function Accounts() {
     </form>
     <section className="panel"><h2>Account directory</h2>{loading && <p>Loading…</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      <ul className="accounts">{data?.map(item => <li key={item._id}><strong>{item.name}</strong>
+      <ul className="accounts">{data?.filter(item => !roleFilter || item.role === roleFilter).map(item => <li key={item._id}><strong>{item.name}</strong>
         <span>{item.email}</span><span className="pill">{item.role}</span></li>)}</ul>
     </section></div></>;
 }
 
-const groupOrder = ['Application', 'People', 'Academics', 'Finance', 'Campus', 'Communication'];
-const groupIcons = { Application: '▦', People: '♙', Academics: '▤', Finance: '◈', Campus: '⌂', Communication: '◇' };
+
+function RolesPage() {
+  const entries = [
+    ['Admin', 'Manage school records, schools and user accounts.'],
+    ['Teacher', 'Read academic records and manage homework, attendance and marks.'],
+    ['Student', 'Read their own student, class and fee records.'],
+    ['Parent', 'Read records for their linked students.'],
+  ];
+  return <><h1>Roles & Permissions</h1><div className="grid">{entries.map(([role,access]) =>
+    <article className="panel" key={role}><h2>{role}</h2><p>{access}</p></article>)}</div></>;
+}
 
 function Workspace({ user, onLogout }) {
   const dashboard = useData('dashboard');
@@ -267,11 +277,11 @@ function Workspace({ user, onLogout }) {
   const [years,setYears] = useState([]);
   const [schools,setSchools] = useState([]);
   const [school,setSchool] = useState(() => localStorage.getItem('school-campus') || '');
+  const [topRequest,setTopRequest] = useState(null);
   const [schoolOpen,setSchoolOpen] = useState(false);
   const [addingSchool,setAddingSchool] = useState(false);
   const [refresh,setRefresh] = useState(0);
   const modules = Object.keys(dashboard.data ?? {});
-  const groups = groupOrder.filter(group => modules.some(key => catalog[key].group === group));
   const campus = schools.find(row => row._id === school);
   useEffect(() => {
     api('workspace/schools').then(setSchools, err => setError(err.message));
@@ -309,31 +319,23 @@ function Workspace({ user, onLogout }) {
     try { await api('auth/logout','POST',{}); localStorage.removeItem('school-campus'); onLogout(); }
     catch (err) { setError(err.message); }
   }
-  function link(key, label, icon) {
-    return <button key={key} title={label} aria-current={view.key === key ? 'page' : undefined} onClick={() => go(key)}>
-      <span className="nav-icon" aria-hidden="true">{icon}</span><span>{label}</span></button>;
-  }
   return <div className={'layout ' + layout} dir={layout === 'rtl' ? 'rtl' : 'ltr'}>
-    <aside className={nav ? 'open' : ''}><Brand />
+    <aside className={'preskool-sidebar' + (nav ? ' open' : '')}><div className="sidebar-brand"><Brand />
+      <button aria-label="Toggle compact sidebar" onClick={() => setDisplay(layout === 'mini' ? 'default' : 'mini')}>☰</button></div>
       <div className="school-picker"><button className="school-name" aria-expanded={schoolOpen} onClick={() => setSchoolOpen(!schoolOpen)}>
         <span className="nav-icon">⌂</span><span><strong>{campus?.name ?? 'Global International'}</strong><small>{campus?.campus ?? 'Primary campus'}</small></span><span>⌄</span></button>
         {schoolOpen && <div className="school-options"><h2>Switch school</h2><button onClick={() => switchSchool('')}>Global International {school === '' && '✓'}</button>
           {schools.map(row => <button onClick={() => switchSchool(row._id)} key={row._id}>{row.name} {school === row._id && '✓'}<small>{row.campus}</small></button>)}
           {user.role === 'admin' && <button onClick={() => { setAddingSchool(true); setSchoolOpen(false); }}>＋ Add new school</button>}</div>}
       </div>
-      <nav aria-label="School modules"><h2>Main</h2>
-      {link('dashboard', user.role === 'admin' ? 'Admin Dashboard' : user.role[0].toUpperCase() + user.role.slice(1) + ' Dashboard','⌂')}
-      {user.role === 'admin' && ['teacher','student','parent'].map(role => link('preview-' + role,role[0].toUpperCase() + role.slice(1) + ' Dashboard','▦'))}
-      {link('messages','Messages','✉')}
-      {groups.map(group => <section key={group}><h2>{group === 'People' ? 'People & admission' : group}</h2>
-        {modules.filter(key => catalog[key].group === group).map(key => link(key, catalog[key].label, groupIcons[group]))}</section>)}
-      {user.role === 'admin' && <section><h2>Administration</h2>{link('accounts', 'User accounts', '⚙')}</section>}
-      </nav>
-      <div className="sidebar-account"><span className="top-avatar">{user.name[0]}</span><button onClick={() => go('profile')}>{user.name}<small>{user.role}</small></button></div>
+      <SidebarMenu user={user} modules={modules} view={view} go={go} layout={layout} setDisplay={setDisplay}
+        openSchools={() => setSchoolOpen(true)} openTopMenu={key => setTopRequest({key})} />
+      <div className="sidebar-account"><button className="sidebar-profile" onClick={() => go('profile')}>
+        <span className="top-avatar">{user.name[0]}</span><span>{user.name}<small>{user.role}</small></span></button></div>
     </aside>
     <div className="workspace">
       <TopBar user={user} go={go} modules={modules} year={year} setYear={value => { setYear(value); localStorage.setItem('school-year',value); }}
-        years={years} layout={layout} setLayout={setDisplay} nav={nav} setNav={setNav} logout={logout} school={school} refresh={refresh} />
+        years={years} layout={layout} setLayout={setDisplay} nav={nav} setNav={setNav} logout={logout} school={school} refresh={refresh} menuRequest={topRequest} />
       <main className="content">{error && <p className="error" role="alert">{error}</p>}
         {view.key === 'dashboard' || view.key.startsWith('preview-') ? <>
           <div hidden={user.role === "admin" && view.key === "dashboard"}><p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
@@ -345,7 +347,7 @@ function Workspace({ user, onLogout }) {
           {dashboard.data && (user.role === 'admin' && view.key === 'dashboard'
             ? <Dashboard user={user} counts={dashboard.data} go={go} year={year} years={years} schoolName={campus?.name ?? "Global International"} onYear={value => { setYear(value); localStorage.setItem("school-year", value); }} refresh={dashboard.reload} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
-        </> : view.key === 'accounts' ? <Accounts /> : view.key === 'messages' ? <Inbox user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
+        </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : view.key === 'messages' ? <Inbox user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
         : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
         : view.key === 'contacts' ? <><h1>Call</h1><section className="panel"><h2>School contacts</h2><p>Open a staff or student record for available phone numbers.</p>
           {['teachers','staff','students'].filter(key => modules.includes(key)).map(key => <button key={key} onClick={() => go(key)}>{catalog[key].label}</button>)}</section></>
