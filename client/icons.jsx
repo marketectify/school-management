@@ -108,6 +108,8 @@ const paths = {
   selector:'m7 10 5-5 5 5m-10 4 5 5 5-5',
   forward:'M4 12h15m-6-6 6 6-6 6',
   target:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zm-5 0a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
+  upload:'M12 16V4m-5 5 5-5 5 5M4 17v4h16v-4',
+  atom:'M12 12h.01M4.5 4.5c1.3-1.3 5.5.7 9.4 4.6s5.9 8.1 4.6 9.4-5.5-.7-9.4-4.6S3.2 5.8 4.5 4.5Zm14 0c1.3 1.3-.7 5.5-4.6 9.4s-8.1 5.9-9.4 4.6.7-5.5 4.6-9.4 8.1-5.9 9.4-4.6Z',
   calendarPlus:'M4 6h16v14H4zM4 10h16M8 3v5m8-5v5m-4 5v5m-2.5-2.5h5',
 };
 const directional = new Set(['back', 'next', 'forward', 'menu', 'panel', 'panelCompact']);
