@@ -30,7 +30,7 @@ export function SidebarMenu({user, modules, view, go, layout, setDisplay, openSc
     const children=Array.isArray(to);
     const dest=children?null:destination(to,label);
     const current=dest&&(dest.layout?layout===dest.layout:dest.key===view.key&&(view.target?.navId?view.target.navId===id:label===(view.key==='dashboard'?(admin?'Admin Dashboard':ownDashboard):({messages:'Chat',email:'Email',contacts:'Call',calendar:'Calendar',todos:'To Do',notes:'Notes',files:'File Manager'}[view.key] ?? view.key))));
-    const open=expanded[id]??(label==='Dashboard'||(label==='Application' && ['messages','email','contacts','calendar','todos','notes','files'].includes(view.key)));
+    const open=expanded[id]??((label==='Dashboard' && (view.key==='dashboard'||view.key.startsWith('preview-')))||(label==='Application' && ['messages','email','contacts','calendar','todos','notes','files'].includes(view.key)));
     const panelId='nav-'+encodeURIComponent(id);
     return <div className={'nav-node depth-'+depth} key={id}>
       <button type="button" title={label} className={'nav-entry'+(children?' nav-branch':'')+(open&&children?' nav-expanded':'')} aria-current={current?'page':undefined}
