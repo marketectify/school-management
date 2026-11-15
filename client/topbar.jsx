@@ -1,7 +1,7 @@
 import { DashboardIcon } from './dashboard-hero.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
-import { Icon, IconButton, Person, shortTime } from './workspace-ui.jsx';
+import { Icon, IconButton, Person, shortTime, showDate } from './workspace-ui.jsx';
 
 const actions = [
   ['New Student','students','cap','Admit & assign to a class'], ['New Teacher','teachers','users','Add faculty & subjects'],
@@ -98,6 +98,15 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
   const allowedProfile = profileLinks.filter(([,key]) => !['fees','tickets'].includes(key) || modules.includes(key));
   const [allApps,setAllApps] = useState(false);
   const [allActions,setAllActions] = useState(false);
+  const [responding,setResponding] = useState('');
+  async function respond(id,decision) {
+    setResponding(id); setError('');
+    try {
+      const updated = await api('workspace/appointments/' + id + '/respond','POST',{ decision });
+      setActivity(rows => rows.map(row => row._id === id ? updated : row));
+    } catch (err) { setError(err.message); }
+    finally { setResponding(''); }
+  }
   async function mark(key) {
     try {
       await api('workspace/' + key + '/read', 'POST', {});
@@ -148,7 +157,15 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
         {menu === 'activity' && <><div className="pop-tabs">{['All','Unread','Alerts'].map(label => <button key={label} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}{label === 'Unread' && <span>{unreadActivity}</span>}</button>)}</div>
           <div className="pop-list">{activityRows.map(row => <div className={'pop-item pop-notice ' + (!row.read ? 'unread' : '')} key={row._id}>
             <span className={'pop-notice-icon ' + (row.kind === 'Alert' ? 'wa-red' : 'wa-blue')}><Icon name={row.kind === 'Alert' ? 'bell' : 'calendar'} /></span>
-            <span><strong>{row.title}</strong><small><Icon name="time" />{shortTime(row.createdAt)}</small></span>
+            <div className="pop-notice-copy"><strong>{row.title}</strong><small><Icon name="time" />{shortTime(row.createdAt)}</small>
+              {row.appointment && <div className="pop-appointment">
+                <span>{showDate(row.appointment.date)} · {row.appointment.time} · {row.appointment.reason}</span>
+                {row.appointment.status === 'Pending' && !row.appointment.outgoing ? <div className="wa-actions">
+                  <button type="button" disabled={Boolean(responding)} onClick={() => respond(row._id,'Denied')}>Deny</button>
+                  <button type="button" className="primary" disabled={Boolean(responding)} onClick={() => respond(row._id,'Approved')}>Approve</button>
+                </div> : <small>{row.appointment.status}</small>}
+              </div>}
+            </div>
             {!row.read && <span className="wa-dot wa-blue pop-end" />}</div>)}
           {!activityRows.length && <p className="wa-empty">No matching notifications.</p>}</div>
           <button className="pop-footer" onClick={() => open('activity')}>View all notifications →</button></>}
