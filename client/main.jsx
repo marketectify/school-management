@@ -7,12 +7,15 @@ import Dashboard from './dashboard.jsx';
 import TopBar from './topbar.jsx';
 import { SidebarMenu, ModuleInfo } from './sidebar.jsx';
 import ParentDashboard from './parent-dashboard.jsx';
-import { ActivityPage, Inbox, RoleDashboard } from './portal.jsx';
+import { ActivityPage, RoleDashboard } from './portal.jsx';
 import StudentDashboard from './student-dashboard.jsx';
 import TeacherDashboard from './teacher-dashboard.jsx';
 import './topbar.css';
-import { Avatar, Profile, Calendar } from './application.jsx';
+import { Avatar, Profile } from './application.jsx';
 import { api } from './api.js';
+import { CommunicationApp } from './workspace-communication.jsx';
+import { CalendarApp, PersonalApp } from './workspace-tools.jsx';
+import './workspace-apps.css';
 
 
 function Login({ onLogin }) {
@@ -165,6 +168,17 @@ function Records({ module, user, initialAdd, year, target }) {
     <Profile student={selected} group={display(selected, classField)} close={() => setProfile('')}
       edit={writable ? () => setEditing(selected) : undefined} />{editor}
   </>;
+  if (['calendar', 'todos', 'notes', 'files'].includes(module)) {
+    const report = () => exportRows(definition, rows, display);
+    const componentProps = { user, rows, loading, error: actionError || error, reload, edit: setEditing, report,
+      remove, update: async (row, fields) => {
+        await api('records/' + module + '/' + row._id, 'PUT', Object.fromEntries(
+          definition.fields.map(({ key }) => [key, fields[key] ?? row[key] ?? ''])));
+        reload();
+      },
+    };
+    return <>{module === 'calendar' ? <CalendarApp {...componentProps} /> : <PersonalApp {...componentProps} module={module} />}{editor}</>;
+  }
   return <>
     <div className="title"><div><p className="breadcrumbs">Dashboard / {definition.group}</p><h1>{target?.label ?? definition.label}</h1></div>
       <div className="actions"><button disabled={!rows.length} onClick={() => exportRows(definition, rows, display)}>Export CSV</button>
@@ -189,7 +203,6 @@ function Records({ module, user, initialAdd, year, target }) {
     {(error || actionError) && <p className="error" role="alert">{error || actionError}</p>}
     {loading ? <p role="status">Loading records…</p> : !error && <>
       <p className="muted">{rows.length} of {data?.length ?? 0} records</p>
-      {module === 'calendar' && <Calendar rows={rows} open={setEditing} create={date => setEditing({ date })} />}
       {module === 'calendar' ? <div className="grid application-grid" style={{ marginTop: 12 }}>
         {rows.map(row => <article className="panel" key={row._id}><h2>{row.name}</h2><p>{row.date} · {row.start}</p>{controls(row)}</article>)}
       </div> : !rows.length ? <div className="panel">No matching records.</div> : grid ? <div className="grid">{rows.map(row =>
@@ -365,10 +378,9 @@ function Workspace({ user, onLogout }) {
             : user.role === 'student' || view.key === 'preview-student' ? <StudentDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
             : user.role === 'parent' || view.key === 'preview-parent' ? <ParentDashboard key={school + view.key} user={user} year={year} go={go} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
-        </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : view.key === 'messages' ? <Inbox key={view.revision} user={user} recipient={view.target?.to} onRead={() => setRefresh(value => value + 1)} />
-        : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section></>
-        : view.key === 'contacts' ? <><h1>Call</h1><section className="panel"><h2>School contacts</h2><p>Open a staff or student record for available phone numbers.</p>
-          {['teachers','staff','students'].filter(key => modules.includes(key)).map(key => <button key={key} onClick={() => go(key)}>{catalog[key].label}</button>)}</section></>
+        </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : ['messages','email','contacts'].includes(view.key) ? <CommunicationApp key={view.revision} mode={view.key}
+          user={user} target={view.target} go={go} onChange={() => setRefresh(value => value + 1)} />
+        : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section>{view.target?.security && <section className="panel"><h2>Privacy &amp; Security</h2><p>Signed in as {user.email}.</p><button onClick={logout}>Sign out of this session</button></section>}</>
         : <Records key={view.revision} module={view.key} user={user} initialAdd={view.add} year={year} target={view.target} />}
       </main>
     </div>
