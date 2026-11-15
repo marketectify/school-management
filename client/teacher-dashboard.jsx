@@ -16,12 +16,15 @@ const dateLabel = value => value ? new Date(value+'T12:00:00').toLocaleDateStrin
 const timestamp = value => value ? new Date(value).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
 const colors = ['blue','green','red','gold','sky','purple','pink','cyan'];
 
-const glyph = { calendar:'▦', attendance:'✓', time:'◷', class:'▤', assignment:'▧', results:'▥', meeting:'⊞', announcement:'◈', messages:'✉', insights:'✧', students:'♙', award:'☆', alert:'♧', activity:'↗' };
+const dashboardIcons = {
+  attendance: 'clipboard', class: 'cap', assignment: 'file', results: 'certificate', meeting: 'calendarPlus',
+  announcement: 'megaphone', messages: 'mail', insights: 'sparkle', students: 'group', award: 'trophy', activity: 'chartLine',
+};
 function Icon({name,tone='blue'}) {
-  return <span aria-hidden="true" className={'td-icon td-'+tone}>{glyph[name] ?? '◇'}</span>;
+  return <span aria-hidden="true" className={'td-icon td-'+tone}><DashboardIcon name={dashboardIcons[name] ?? name} /></span>;
 }
 function Panel({title,icon,action,children,className=''}) {
-  return <section className={'td-panel panel '+className}><div className="td-panel-heading"><h2><span aria-hidden="true">{glyph[icon]}</span> {title}</h2>{action}</div>{children}</section>;
+  return <section className={'td-panel panel '+className}><div className="td-panel-heading"><h2><DashboardIcon name={dashboardIcons[icon] ?? icon} /> {title}</h2>{action}</div>{children}</section>;
 }
 function Row({title,detail,icon,tone,action}) {
   return <article className="td-row"><Icon name={icon} tone={tone}/><div><strong>{title}</strong>{detail && <small>{detail}</small>}</div>{action}</article>;
@@ -203,7 +206,7 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
         <HeroMetric name="Profile Completion" value={percent(profilePct)} progress={profilePct} icon="badge" tone="cyan" run={goTo('profile')}/>
         <HeroMetric name="Teaching Insights" value={percent(averageMarks)} icon="sparkle" tone="purple" run={()=>setReport(true)}/>
       </div>
-      <div className="td-quick dashboard-quick"><small>ϟ Quick actions:</small>{quick.map(([label,,run],i)=><button key={label} className={i===0?'primary':''}
+      <div className="td-quick dashboard-quick"><small><DashboardIcon name="bolt" /> Quick actions:</small>{quick.map(([label,,run],i)=><button key={label} className={i===0?'primary':''}
         disabled={busy||(i===1&&!schedule.some(row=>sessionFor(row._id)?.status!=='Done'))} onClick={run}><DashboardIcon name={['clipboard','play','file','grid','calendar','megaphone'][i]}/> {label}</button>)}
         <button aria-expanded={more} onClick={()=>setMore(!more)}><DashboardIcon name="grid"/> More Actions</button>
         {more&&<div className="td-more">{[['Submissions','submissions'],['Leave Requests','leaves'],['Achievements','achievements'],['Study Materials','files'],['Class Sessions','sessions']].map(([label,key])=><button key={key} onClick={goTo(key)}>{label}</button>)}</div>}
@@ -227,8 +230,8 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
           <div><strong>{row.start}</strong><small>{Math.max(0,minutes(row.end)-minutes(row.start))} min</small></div>
           <div><strong>{subject(row.subjectId)??row.name}</strong><small>{className(row.classId)} · Room {row.room} · {students.filter(student=>student.classId===row.classId).length} students</small></div>
           <div className="actions"><Badge tone={tone}>{session?.status??(row===upcoming[0]?'Next':row.start)}</Badge>
-            {session?.status!=='Done'&&<button disabled={busy} onClick={()=>toggleClass(row)}>{session?'Finish':'▶ Class'}</button>}
-            <button title="Take attendance" aria-label={'Take attendance for '+row.name} onClick={()=>addAttendance(row.classId)}>✓</button></div>
+            {session?.status!=='Done'&&<button disabled={busy} onClick={()=>toggleClass(row)}>{session ? 'Finish' : <><DashboardIcon name="play" /> Class</>}</button>}
+            <button title="Take attendance" aria-label={'Take attendance for '+row.name} onClick={()=>addAttendance(row.classId)}><DashboardIcon name="clipboard" /></button></div>
         </article>;}):<Empty>No periods scheduled for {weekdays[now.getDay()]}. Open the full schedule to see all assigned periods.</Empty>}
       </Panel>
       <Panel title="Teaching Insights" icon="insights" className="td-insights" action={<Badge tone="purple">Classroom data</Badge>}>
@@ -249,26 +252,26 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
         </svg><small>Performance Trend (6 weeks)</small></article>
       </div>
     </Panel>
-    <Panel title="My Classes" icon="class" action={<button onClick={goTo('timetable')}>View All ›</button>}>
+    <Panel title="My Classes" icon="class" action={<button onClick={goTo('timetable')}>View All <DashboardIcon name="next" /></button>}>
       {classCards.length?<div className="td-grid td-three">{classCards.map((row,i)=>{
         const roster=students.filter(student=>student.classId===row.classId);
         const records=attendance.filter(entry=>studentsById.get(entry.studentId)?.classId===row.classId);
         return <article className="td-class-card" key={row.classId+row.subjectId}>
           <div className={'td-class-title td-'+colors[i%colors.length]}><Icon name="class" tone={colors[i%colors.length]}/><div><strong>{className(row.classId)}</strong><small>{subject(row.subjectId)??row.name}</small></div></div>
           <div className="td-class-values">{[[roster.length,'Students'],[percent(pct(records.filter(present).length,records.length)),'Attendance'],[percent(classAverage(row.classId)),'Avg Marks']].map(([value,label])=><div key={label}><strong>{value}</strong><small>{label}</small></div>)}</div>
-          <div className="td-class-actions"><button onClick={()=>addAttendance(row.classId)} title="Take attendance">✓</button>
-            <button title="Class roster" onClick={goTo('students',false,{group:row.classId})}>♙</button><button title="Create assignment" onClick={()=>addAssignment(row)}>▧</button>
-            <button title="Class timetable" onClick={goTo('timetable',false,{group:row.classId})}>▦</button></div>
+          <div className="td-class-actions"><button onClick={()=>addAttendance(row.classId)} title="Take attendance"><DashboardIcon name="clipboard" /></button>
+            <button title="Class roster" onClick={goTo('students',false,{group:row.classId})}><DashboardIcon name="group" /></button><button title="Create assignment" onClick={()=>addAssignment(row)}><DashboardIcon name="file" /></button>
+            <button title="Class timetable" onClick={goTo('timetable',false,{group:row.classId})}><DashboardIcon name="calendar" /></button></div>
         </article>;
       })}</div>:<Empty>No assigned classes yet.</Empty>}
     </Panel>
     <div className="td-grid td-wide">
-      <Panel title="Assignments" icon="assignment" action={<button className="primary" onClick={()=>addAssignment()}>＋ Create Assignment</button>}>
+      <Panel title="Assignments" icon="assignment" action={<button className="primary" onClick={()=>addAssignment()}><DashboardIcon name="plusSmall" /> Create Assignment</button>}>
         <div className="td-tabs">{['Pending Review','Submitted','Late','Deadlines','Graded'].map(label=><button key={label} aria-pressed={tab===label} onClick={()=>setTab(label)}>{label}{label==='Pending Review'?' '+pending.length:''}</button>)}</div>
         {assignmentRows.length?assignmentRows.map(task=><Row key={task._id} title={task.name} detail={className(task.classId)+' · '+submissions.filter(row=>row.homeworkId===task._id).length+' of '+students.filter(row=>row.classId===task.classId).length+' submitted'}
-          icon="assignment" tone="gold" action={<button onClick={goTo('submissions',false,{homeworkId:task._id,defaults:{homeworkId:task._id}})}>{tab==='Pending Review'?'Review':dateLabel(task.due)} ›</button>}/>):<Empty>No assignments in this view.</Empty>}
+          icon="assignment" tone="gold" action={<button onClick={goTo('submissions',false,{homeworkId:task._id,defaults:{homeworkId:task._id}})}>{tab==='Pending Review'?'Review':dateLabel(task.due)} <DashboardIcon name="next" /></button>}/>):<Empty>No assignments in this view.</Empty>}
       </Panel>
-      <Panel title="Exam & Grading" icon="results" action={<button onClick={goTo('results')}>Results ›</button>}>
+      <Panel title="Exam & Grading" icon="results" action={<button onClick={goTo('results')}>Results <DashboardIcon name="next" /></button>}>
         <div className="td-exam-stats">{[[futureExams.length,'Upcoming Exams'],[upcomingExamMarks,'Marks Pending'],[percent(averageMarks),'Average Marks'],[topClass?className(topClass._id):'—','Top Class']].map(([v,l])=><article className="td-performance" key={l}><strong>{v}</strong><small>{l}</small></article>)}</div>
         <h3>Upcoming Exams</h3>{futureExams.slice(0,3).map(exam=><Row key={exam._id} title={exam.name} detail={className(exam.classId)} icon="results" tone="purple"
           action={<Badge tone="gold">{dateLabel(exam.date)}</Badge>}/>)}
@@ -278,7 +281,7 @@ export default function TeacherDashboard({user,year,go,openNotifications}) {
       </Panel>
     </div>
     <div className="td-grid td-two">
-      <Panel title="Attendance Center" icon="attendance" action={<button className="primary" onClick={attendanceAction}>＋ Quick Attendance</button>}>
+      <Panel title="Attendance Center" icon="attendance" action={<button className="primary" onClick={attendanceAction}><DashboardIcon name="plusSmall" /> Quick Attendance</button>}>
         <div className="td-class-values">{['Present','Absent','Late','On leave'].map(label=><div key={label}><strong>{todaysAttendance.filter(row=>row.status===label).length}</strong><small>{label}</small></div>)}</div>
         <h3>Leave Requests</h3>{leaves.length?leaves.map(row=><Row key={row._id} title={studentsById.get(row.studentId).name} detail={row.reason+' · '+dateLabel(row.date)}
           icon="calendar" tone="gold" action={<div className="actions">{['Approved','Denied'].map(value=><button key={value} disabled={busy} onClick={()=>save('records/leaves/'+row._id,'PUT',{studentId:row.studentId,date:row.date,reason:row.reason,status:value},'Leave request '+value.toLowerCase()+'.')}>{value==='Approved'?'Approve':'Deny'}</button>)}</div>}/>):<Empty>No pending leave requests.</Empty>}
