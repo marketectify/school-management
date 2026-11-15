@@ -1,7 +1,7 @@
 export const sections = [
   ["Main", [
     ["Dashboard",[["Admin Dashboard","dashboard"],["Teacher Dashboard","preview-teacher"],["Student Dashboard","preview-student"],["Parent Dashboard","preview-parent"]],"▦"],
-    ["Application",[["Chat","messages"],["Call","contacts"],["Calendar","calendar"],["Email","messages"],["To Do","todos"],["Notes","notes"],["File Manager","files"]],"▤"],
+    ["Application",[["Chat","messages"],["Call","contacts"],["Calendar","calendar"],["Email","email"],["To Do","todos"],["Notes","notes"],["File Manager","files"]],"▤"],
     ["Layouts",[["Default","!default"],["Mini","!mini"],["RTL","!rtl"],["Box","!boxed"],["Dark","!dark"]],"▦"]
   ]],
   ["People & Admission", [
