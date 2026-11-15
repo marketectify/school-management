@@ -28,7 +28,7 @@
 .erp-stats small,.erp-metrics small{font-size:.77rem}
 .erp-footer{padding-block:12px;border-color:var(--erp-divider)}
 .erp-spotlights{gap:clamp(14px,1.65vw,28px)}.erp-spotlight{position:relative;overflow:hidden;min-height:210px;padding:20px;border-radius:20px;display:flex;flex-direction:column;align-items:flex-start}
-.erp-spotlight:after{content:'';position:absolute;width:100px;height:100px;right:11%;top:25%;border:2px dashed #fff4;border-radius:50%;pointer-events:none}
+.erp-spotlight:after{content:'';position:absolute;width:100px;height:100px;inset-inline-end:11%;top:25%;border:2px dashed #fff4;border-radius:50%;pointer-events:none}
 .erp-spotlight small{color:#118b43;background:#fff;font-weight:700;letter-spacing:.04em}.erp-spotlight.blue small{color:#4059dc}
 .erp-spotlight h2{font-size:1.32rem}.erp-spotlight p{color:#fffD}.erp-spotlight button{margin-top:auto;font-weight:700}
 .erp-bar{margin:16px 0}.erp-bar>div:first-child{font-size:.88rem;color:var(--erp-secondary)}.erp-track{height:7px;margin-top:7px;background:var(--erp-tint)}
