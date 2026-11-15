@@ -211,7 +211,7 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
         <HeroMetric name="Subjects Passed" value={subjectScores.filter(row=>row.score>=50).length+' / '+subjectScores.length} icon="medal" tone="gold"/>
         <HeroMetric name="Library Books" value={issued.length} icon="book" tone="sky"/>
       </div>
-      <div className="td-quick dashboard-quick"><small>ϟ Quick actions:</small>{[
+      <div className="td-quick dashboard-quick"><small><DashboardIcon name="bolt" /> Quick actions:</small>{[
         ['View Timetable','grid',action('timetable')],['Assignments','file',scroll('sd-assignments')],['Homework','book',action('homework')],
         ['Exam Results','badge',action('results')],['Library','book',scroll('sd-library')],['Fee Details','wallet',feeDetails],
         ['Message Teacher','chat',action('messages')],['Request Leave','calendar',()=>setDialog({kind:'leave'})],
@@ -253,7 +253,7 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
         <Row title="Best month" detail={months.reduce((a,b)=>a.score>b.score?a:b).name} icon="arrow" tone="green"/></>:empty('Progress appears after results are published.')}</div></div>
     </Panel>
     <div className="td-grid td-wide" id="sd-assignments">
-      <Panel title="Assignments & Homework" icon="clipboard" action={primary&&<button className="primary" disabled={!pending.length} onClick={()=>setDialog({kind:'selectUpload'})}>↑ Upload Assignment</button>}>
+      <Panel title="Assignments & Homework" icon="clipboard" action={primary&&<button className="primary" disabled={!pending.length} onClick={()=>setDialog({kind:'selectUpload'})}><DashboardIcon name="upload" /> Upload Assignment</button>}>
         <div className="td-tabs">{['Pending','Submitted','Overdue','Graded','Deadlines'].map(key=><button key={key} aria-pressed={tab===key} onClick={()=>setTab(key)}>{key}{key==='Pending'?' '+pending.filter(row=>row.due>=today).length:''}</button>)}</div>
         {assignments.map(row=><Row key={row._id} title={row.name} detail={[named('subjects',row.subjectId)?.name,'Due '+short(row.due)].filter(Boolean).join(' · ')} tone="sky" action={primary&&submission(row)?.status!=='Graded'?<button onClick={uploadFor(row)}>Upload</button>:<small>{submission(row)?.status??'Pending'}</small>}/>)}
         {!assignments.length&&empty('No assignments in this view.')}
@@ -262,7 +262,7 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
         {future[0]&&<div className="sd-next"><Row title={future[0].name} detail={'Next exam · '+short(future[0].date)} icon="time"/></div>}
         <h3>Upcoming Exams</h3>{future.slice(0,4).map(row=><Row key={row._id} title={row.name} detail={short(row.date)} tone="gold"/>)}
         {!future.length&&empty('No upcoming exams.')}
-        <h3>Latest Results</h3>{marks.slice(0,3).map(row=><Row key={row._id} title={row.exam.name} detail={row.marks+' / '+row.exam.maximum+' · Grade '+grade(row.score)} icon="star" action={<button aria-label={'Download '+row.exam.name+' result'} onClick={()=>csv('exam-result',['Exam','Marks','Maximum'],[[row.exam.name,row.marks,row.exam.maximum]])}>↓</button>}/>)}
+        <h3>Latest Results</h3>{marks.slice(0,3).map(row=><Row key={row._id} title={row.exam.name} detail={row.marks+' / '+row.exam.maximum+' · Grade '+grade(row.score)} icon="star" action={<button aria-label={'Download '+row.exam.name+' result'} onClick={()=>csv('exam-result',['Exam','Marks','Maximum'],[[row.exam.name,row.marks,row.exam.maximum]])}><DashboardIcon name="download" /></button>}/>)}
         <button className="td-full" onClick={action('exams')}>Full Exam Schedule</button>
       </Panel>
     </div>
@@ -276,7 +276,7 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
       <Panel title="Fee Summary" icon="wallet" action={<button className="primary" onClick={feeDetails}>View Balance</button>}>
         <div className="sd-fee-top"><Ring value={percent(collected,total(fees,'amount'))} caption="Paid" color="#18b833"/><dl>{[['Total Fees',total(fees,'amount')],['Paid',collected],['Pending',due-overdue],['Overdue',overdue]].map(([name,value])=><div key={name}><dt>{name}</dt><dd>{money(value)}</dd></div>)}</dl></div>
         {fees.find(row=>balance(row)>0)&&<Row title={'Next Installment · '+money(balance(fees.find(row=>balance(row)>0)))} detail={fees.find(row=>balance(row)>0).name} icon="calendar" action={<button onClick={feeDetails}>Details</button>}/>}
-        <h3>Payment History</h3>{(d.payments??[]).filter(row=>fees.some(fee=>fee._id===row.feeId)).slice(0,4).map(row=><Row key={row._id} title={named('fees',row.feeId)?.name??'Payment'} detail={money(row.amount)+' · '+short(row.date)} icon="tick" action={<button aria-label="Download payment receipt" onClick={()=>csv('payment-receipt',['Fee','Amount','Date'],[[named('fees',row.feeId)?.name,row.amount,row.date]])}>↓</button>}/>)}
+        <h3>Payment History</h3>{(d.payments??[]).filter(row=>fees.some(fee=>fee._id===row.feeId)).slice(0,4).map(row=><Row key={row._id} title={named('fees',row.feeId)?.name??'Payment'} detail={money(row.amount)+' · '+short(row.date)} icon="tick" action={<button aria-label="Download payment receipt" onClick={()=>csv('payment-receipt',['Fee','Amount','Date'],[[named('fees',row.feeId)?.name,row.amount,row.date]])}><DashboardIcon name="download" /></button>}/>)}
       </Panel>
     </div>
     <div className="td-grid td-two" id="sd-learning">
@@ -298,7 +298,7 @@ export default function StudentDashboard({user,year,go,openNotifications}) {
         <div className="sd-awards">{awards.slice(0,6).map((row,i)=><article key={row._id}><span className={'td-icon td-'+tones[(i+2)%tones.length]} aria-hidden="true"><DashboardIcon name="trophy" /></span><strong>{row.name}</strong><small>{row.category}</small></article>)}</div>
         {awards.length?<><h3>Recent Achievement Timeline</h3>{awards.slice(0,5).map(row=><Row key={row._id} title={row.name} detail={row.category+' · '+short(row.date)} icon="star" tone="gold"/>)}</>:empty('No achievements recorded.')}
       </Panel>
-      <Panel title="My Teachers" icon="profile">{teachers.map((row,i)=><Row key={row._id} title={row.name} detail={row.department} icon="profile" tone={tones[i%tones.length]} action={<button aria-label={'Message '+row.name} onClick={action('messages',false,{to:d.teacherContacts?.find(contact=>contact.teacherId===row._id)?.userId})}>✉</button>}/>)}
+      <Panel title="My Teachers" icon="profile">{teachers.map((row,i)=><Row key={row._id} title={row.name} detail={row.department} icon="profile" tone={tones[i%tones.length]} action={<button aria-label={'Message '+row.name} onClick={action('messages',false,{to:d.teacherContacts?.find(contact=>contact.teacherId===row._id)?.userId})}><DashboardIcon name="mail" /></button>}/>)}
         {!teachers.length&&empty('Teachers appear after the class timetable is assigned.')}</Panel>
     </div>
     <div className="td-grid td-three">
