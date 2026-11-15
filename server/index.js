@@ -13,7 +13,7 @@ import { hashPassword, login, logout, publicUser, requireUser } from './auth.js'
 const app = express();
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
-app.use('/api/workspace/assignment-file', express.json({ limit: '3mb' }));
+app.use(['/api/workspace/assignment-file', '/api/workspace/files'], express.json({ limit: '3mb' }));
 app.use('/api', express.json({ limit: '32kb' }));
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
