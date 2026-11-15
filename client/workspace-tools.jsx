@@ -305,7 +305,8 @@ export function PersonalApp({ module, user, rows, error, loading, reload, edit, 
           event.preventDefault();
           const name = new FormData(event.currentTarget).get('name').trim();
           if (!name) return;
-          setPrefs(previous => ({ ...previous, folders:[...previous.folders,{ _id:crypto.randomUUID(), name, folder:true, updatedAt:new Date().toISOString() }] }));
+          const id = 'folder-' + Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8,'0')).join('');
+          setPrefs(previous => ({ ...previous, folders:[...previous.folders,{ _id:id, name, folder:true, updatedAt:new Date().toISOString() }] }));
           setDialog(null);
         }}><label>Folder name<input name="name" required maxLength={160} /></label><button className="primary">Create folder</button></form>}
     </Dialog>}
