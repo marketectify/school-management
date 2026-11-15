@@ -140,7 +140,7 @@ export default function ParentDashboard({user,year,go}) {
         </div>
         <div className="pd-actions"><Action primary icon="wallet" onClick={()=>setDialog('fees')}>Fee Details</Action><Action icon="chat" onClick={message}>Message Teacher</Action>
           <Action icon="file" onClick={report}>Report Card</Action><Action icon="bus" onClick={jump('pd-transport')}>Bus Details</Action>
-          <Action icon="grid" onClick={()=>setDialog('timetable')}>Timetable</Action><Action icon="calendar" onClick={open('calendar',true)}>Meeting</Action>
+          <Action icon="grid" onClick={()=>setDialog('timetable')}>Timetable</Action><Action icon="calendar" onClick={open('calendar',false,{meeting:true})}>Meeting</Action>
           {parent&&<Action icon="clipboard" onClick={()=>setDialog('leave')}>Request Leave</Action>}</div>
       </section>
       <div className="pd-side">
