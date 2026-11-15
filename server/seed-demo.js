@@ -38,6 +38,22 @@ async function seed() {
     await add('tickets', owner.id + '/projector', { ownerId: owner._id, name: 'Classroom projector check', body: 'Check the projector before the open day.', status: 'Open' });
     await add('files', owner.id + '/calendar', { ownerId: owner._id, name: 'School calendar reference', link: 'https://example.com/', notes: 'Replace with your published school document.' });
     const ownerId = owner._id;
+    for (const [key,name,days,start,notes] of [
+      ['annual-function','Annual Function',2,'11:30','School auditorium · awards and performances'],
+      ['teacher-meeting','Teacher Meeting',4,'14:00','Conference room · faculty planning'],
+      ['training','Teaching Workshop',7,'09:30','Staff training · computer lab'],
+      ['parent-meeting','Parent–Teacher Meeting',9,'16:00','Meet families in the main hall'],
+    ]) await add('calendar', owner.id + '/' + key, { ownerId, name, date:after(days), start, notes });
+    for (const [key,name,days,status,priority,notes] of [
+      ['briefing','Prepare teaching team briefing',0,'Pending','High','Share the agenda before the afternoon meeting.'],
+      ['room-bookings','Confirm room bookings',-1,'Pending','Medium','Confirm the auditorium and science lab bookings.'],
+      ['new-intake','Update new student register',-2,'Done','Low','Review the admission records with the registrar.'],
+    ]) await add('todos', owner.id + '/' + key, { ownerId, name, due:after(days), status, priority, notes });
+    for (const [key,name,priority,body] of [
+      ['open-day-notes','Open day checklist','High','Confirm tour groups, classroom signs and parent welcome desks.'],
+      ['reading-club','Reading club ideas','Medium','Create a rotating book list and invite students to share reviews.'],
+      ['training-notes','Staff workshop notes','Low','Collect feedback and send the next session agenda.'],
+    ]) await add('notes', owner.id + '/' + key, { ownerId, name, body, priority });
     await add('calendar', owner.id + '/open-day', { ownerId, name: 'School open day', date: '2026-11-24', start: '10:00', notes: 'Welcome families in the main hall.' });
     await add('todos', owner.id + '/reports', { ownerId, name: 'Review midterm reports', due: '2026-11-20', status: 'Pending', priority: 'High', notes: 'Review results with class teachers.' });
     await add('notes', owner.id + '/meeting', { ownerId, name: 'Academic planning meeting', body: 'Review lesson plans and confirm the next school event.', priority: 'Medium' });

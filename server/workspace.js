@@ -12,8 +12,24 @@ const Message = mongoose.model('Message', new Schema({
   from: { type: objectId, required: true, index: true },
   to: { type: objectId, required: true, index: true },
   body: { type: String, required: true, maxlength: 3000 },
+  subject: { type: String, maxlength: 160, default: '' },
+  channel: { type: String, enum: ['chat', 'mail'], default: 'chat' },
   read: { type: Boolean, default: false },
 }, { timestamps: true }));
+const WorkspaceCall = mongoose.model('WorkspaceCall', new Schema({
+  from: { type: objectId, required: true, index: true },
+  to: { type: objectId, required: true, index: true },
+  offer: { type: String, required: true }, answer: String, ended: Boolean,
+  expires: { type: Date, required: true, expires: 0 },
+}, { timestamps: true }));
+
+const PersonalFile = mongoose.model('PersonalFile', new Schema({
+  owner: { type: objectId, required: true, index: true },
+  name: { type: String, required: true, maxlength: 160 },
+  type: { type: String, required: true },
+  bytes: { type: Buffer, required: true, select: false },
+}, { timestamps: true }));
+
 const AssignmentFile = mongoose.model('AssignmentFile', new Schema({
   submissionId: { type: objectId, required: true, unique: true },
   filename: { type: String, required: true },
@@ -23,6 +39,14 @@ const Activity = mongoose.model('WorkspaceActivity', new Schema({
   owner: { type: objectId, required: true, index: true },
   title: { type: String, required: true },
   kind: { type: String, default: 'Update' },
+  appointment: {
+    requester: { type: objectId, index: true },
+    contact: String,
+    date: String,
+    time: String,
+    reason: String,
+    status: { type: String, enum: ['Pending','Approved','Denied'] },
+  },
   read: { type: Boolean, default: false },
 }, { timestamps: true }));
 
@@ -116,26 +140,134 @@ export function workspaceRoutes(User) {
     res.json(await User.find({ _id: { $ne: req.user._id }, ...await contactScope(req.user) })
       .select('name role').sort('name').limit(200));
   });
+  const describeCall = ({ id, from, to, offer, answer, ended, createdAt }) =>
+    ({ id, from, to, offer, answer, ended, createdAt });
+  const callScope = user => ({ $or: [{ from: user._id }, { to: user._id }], expires: { $gt: new Date() } });
+  const validSdp = value => typeof value === 'string' && value.startsWith('v=0') && value.length < 24000;
+  router.get('/calls', async (req, res) => {
+    const calls = await WorkspaceCall.find({ ...callScope(req.user), to: req.user._id, answer: null, ended: null,
+      createdAt: { $gt: new Date(Date.now() - 120000) } }).sort({ createdAt: -1 }).limit(10);
+    res.json(calls.map(({ id, from, createdAt }) => ({ id, from, createdAt })));
+  });
+  router.post('/calls', async (req, res) => {
+    const { to, offer } = req.body ?? {};
+    if (!mongoose.isObjectIdOrHexString(to) || req.user._id.equals(to) || !validSdp(offer)) return res.sendStatus(400);
+    if (!await User.exists({ _id: to, ...await contactScope(req.user) })) return res.sendStatus(404);
+    const call = await WorkspaceCall.create({ from: req.user._id, to, offer, expires: new Date(Date.now() + 7200000) });
+    res.status(201).json(describeCall(call));
+  });
+  router.get('/calls/:id', async (req, res) => {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.sendStatus(404);
+    const call = await WorkspaceCall.findOne({ ...callScope(req.user), _id: req.params.id });
+    if (!call) return res.sendStatus(404);
+    res.json(describeCall(call));
+  });
+  router.post('/calls/:id/answer', async (req, res) => {
+    if (!mongoose.isObjectIdOrHexString(req.params.id) || !validSdp(req.body?.answer)) return res.sendStatus(400);
+    const call = await WorkspaceCall.findOneAndUpdate(
+      { ...callScope(req.user), _id: req.params.id, to: req.user._id, answer: null, ended: null },
+      { $set: { answer: req.body.answer } }, { new: true });
+    if (!call) return res.sendStatus(409);
+    res.json(describeCall(call));
+  });
+  router.post('/calls/:id/end', async (req, res) => {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.sendStatus(404);
+    await WorkspaceCall.updateOne({ ...callScope(req.user), _id: req.params.id }, { $set: { ended: true } });
+    res.sendStatus(204);
+  });
+  router.get('/files', async (req, res) => {
+    const rows = await PersonalFile.aggregate([
+      { $match: { owner: req.user._id } },
+      { $sort: { updatedAt: -1 } },
+      { $project: { name: 1, type: 1, updatedAt: 1, size: { $binarySize: '$bytes' } } },
+    ]);
+    res.json(rows);
+  });
+  router.post('/files', async (req, res) => {
+    const { name, type, content } = req.body ?? {};
+    if (typeof name !== 'string' || !name.trim() || name.length > 160 || /[\\/\x00-\x1f\x7f]/.test(name) ||
+        typeof content !== 'string' || content.length > 2796204 || !/^[A-Za-z0-9+/]+={0,2}$/.test(content)) {
+      return res.status(400).json({ message: 'Choose a named file up to 2 MB.' });
+    }
+    const bytes = Buffer.from(content, 'base64');
+    if (!bytes.length || bytes.length > 2097152) return res.status(400).json({ message: 'Choose a named file up to 2 MB.' });
+    const mediaTypes = ['image/jpeg','image/png','image/gif','image/webp','video/mp4','video/webm','audio/mpeg','audio/wav','application/pdf'];
+    const file = await PersonalFile.create({
+      owner: req.user._id, name: name.trim(), type: mediaTypes.includes(type) ? type : 'application/octet-stream', bytes,
+    });
+    res.status(201).json({ _id: file.id, name: file.name, type: file.type, size: bytes.length, updatedAt: file.updatedAt });
+  });
+  router.get('/files/:id', async (req, res) => {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.sendStatus(404);
+    const file = await PersonalFile.findOne({ _id: req.params.id, owner: req.user._id }).select('+bytes');
+    if (!file) return res.sendStatus(404);
+    if (req.query.preview !== '1' || file.type === 'application/octet-stream') res.attachment(file.name);
+    res.type(file.type);
+    res.send(file.bytes);
+  });
+  router.delete('/files/:id', async (req, res) => {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.sendStatus(404);
+    const result = await PersonalFile.deleteOne({ _id: req.params.id, owner: req.user._id });
+    res.sendStatus(result.deletedCount ? 204 : 404);
+  });
   router.get('/messages', async (req, res) => {
     res.json(await Message.find({ $or: [{ from: req.user._id }, { to: req.user._id }] })
       .sort({ createdAt: -1 }).limit(200));
   });
   router.post('/messages', async (req, res) => {
-    const { to, body } = req.body ?? {};
+    const { to, body, channel = 'chat', subject = '' } = req.body ?? {};
     if (typeof to !== 'string' || !mongoose.isObjectIdOrHexString(to) || req.user._id.equals(to) ||
-        typeof body !== 'string' || !body.trim() || body.length > 3000) {
+        !['chat', 'mail'].includes(channel) || typeof subject !== 'string' || subject.length > 160 ||
+        (channel === 'mail' && !subject.trim()) || typeof body !== 'string' || !body.trim() || body.length > 3000) {
       return res.status(400).json({ message: 'Choose a recipient and enter a message.' });
     }
     const recipient = await User.findOne({ _id: to, ...await contactScope(req.user) });
     if (!recipient) return res.status(404).json({ message: 'Recipient unavailable.' });
-    res.status(201).json(await Message.create({ from: req.user._id, to, body: body.trim() }));
+    res.status(201).json(await Message.create({ from: req.user._id, to, body: body.trim(), channel, subject: channel === 'mail' ? subject.trim() : '' }));
   });
   router.post('/messages/read', async (req, res) => {
-    await Message.updateMany({ to: req.user._id, read: false }, { read: true });
+    const { id, from } = req.body ?? {};
+    if (id && from) return res.sendStatus(400);
+    if ([id, from].some(value => value !== undefined && !mongoose.isObjectIdOrHexString(value))) return res.sendStatus(400);
+    const scope = { to: req.user._id, read: false };
+    if (id) scope._id = id;
+    if (from) { scope.from = from; scope.channel = { $ne: 'mail' }; }
+    await Message.updateMany(scope, { read: true });
     res.sendStatus(204);
   });
+  router.post('/appointments', async (req,res) => {
+    const { to, date, time, reason } = req.body ?? {};
+    if (!mongoose.isObjectIdOrHexString(to) || req.user._id.equals(to) ||
+        typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0,10) !== date ||
+        typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time) ||
+        typeof reason !== 'string' || !reason.trim() || reason.length > 300) {
+      return res.status(400).json({ message:'Choose a contact, date and time, and enter a reason.' });
+    }
+    const recipient = await User.findOne({ $and: [
+      { _id:to, role:{ $in:['teacher','admin'] } }, await contactScope(req.user),
+    ] }).select('name');
+    if (!recipient) return res.sendStatus(404);
+    await Activity.create({ owner:recipient.id, kind:'Alert', title:req.user.name + ' requested an appointment.',
+      appointment:{ requester:req.user._id, contact:recipient.name, date, time, reason:reason.trim(), status:'Pending' } });
+    res.sendStatus(204);
+  });
+  router.post('/appointments/:id/respond', async (req,res) => {
+    const decision = req.body?.decision;
+    if (!mongoose.isObjectIdOrHexString(req.params.id) || !['Approved','Denied'].includes(decision)) return res.sendStatus(400);
+    const updated = await Activity.findOneAndUpdate(
+      { _id:req.params.id, owner:req.user._id, 'appointment.status':'Pending' },
+      { $set:{ 'appointment.status':decision, read:true } }, { new:true });
+    if (!updated) return res.status(409).json({ message:'This appointment is no longer pending.' });
+    res.json(updated);
+  });
   router.get('/activity', async (req, res) => {
-    res.json(await Activity.find({ owner: req.user._id }).sort({ createdAt: -1 }).limit(100));
+    const rows = await Activity.find({ $or:[{ owner:req.user._id },{ 'appointment.requester':req.user._id }] })
+      .sort({ createdAt:-1 }).limit(100).lean();
+    res.json(rows.map(row => row.owner.equals(req.user._id) ? row : {
+      ...row, read:true, title:'Meeting with ' + row.appointment.contact + ' · ' + row.appointment.status,
+      appointment:{ ...row.appointment, outgoing:true },
+    }));
   });
   router.post('/activity/read', async (req, res) => {
     await Activity.updateMany({ owner: req.user._id, read: false }, { read: true });
