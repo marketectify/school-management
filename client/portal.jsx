@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { Icon } from './icons.jsx';
 
 export function Inbox({ user, onRead, recipient }) {
   const [rows, setRows] = useState([]);
@@ -33,7 +34,7 @@ export function Inbox({ user, onRead, recipient }) {
     <section className="panel"><div className="title"><h2>Inbox</h2><div className="actions"><button onClick={load}>Refresh</button>
       <button onClick={async () => { try { await api('workspace/messages/read','POST',{}); await load(); onRead(); } catch (err) { setError(err.message); } }}>Mark read</button></div></div>
       {rows.length ? rows.map(row => <article className={'pop-item ' + (row.to === user.id && !row.read ? 'unread' : '')} key={row._id}>
-        <strong>{label(row.from)} → {label(row.to)}</strong><p className="note-body">{row.body}</p><small>{new Date(row.createdAt).toLocaleString()}</small>
+        <strong>{label(row.from)} <Icon name="forward" /> {label(row.to)}</strong><p className="note-body">{row.body}</p><small>{new Date(row.createdAt).toLocaleString()}</small>
       </article>) : <p className="muted">No messages yet.</p>}</section></div></>;
 }
 
