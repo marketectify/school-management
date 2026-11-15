@@ -78,7 +78,7 @@ function exportRows(definition, rows, display) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Editor({ definition, values, references, close, save }) {
+function Editor({ definition, values, references, close, save, onDelete }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(event) {
@@ -107,8 +107,12 @@ function Editor({ definition, values, references, close, save }) {
               step={type === 'number' ? 'any' : undefined} maxLength={200} />}</label>;
       })}
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="actions"><button type="button" onClick={close} disabled={busy}>Cancel</button>
-        <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save record'}</button></div>
+      <div className="actions">{onDelete && <button type="button" className="danger" disabled={busy} onClick={async () => {
+        setBusy(true);
+        try { await onDelete(); }
+        finally { setBusy(false); }
+      }}>Delete event</button>}<button type="button" onClick={close} disabled={busy}>Cancel</button>
+        <button className="primary" disabled={busy}>{busy ? 'Working…' : 'Save record'}</button></div>
     </form>
   </section></div>;
 }
@@ -155,15 +159,16 @@ function Records({ module, user, initialAdd, year, target }) {
     if (!window.confirm('Delete this record?')) return;
     setDeleting(row._id);
     setActionError('');
-    try { await api('records/' + module + '/' + row._id, 'DELETE'); reload(); }
-    catch (err) { setActionError(err.message); }
+    try { await api('records/' + module + '/' + row._id, 'DELETE'); reload(); return true; }
+    catch (err) { setActionError(err.message); return false; }
     finally { setDeleting(''); }
   }
   const controls = row => writable && <div className="actions">{module === 'submissions' && row.notes === 'Student PDF submission' && <a href={'/api/workspace/assignment-file/' + row._id}>Download PDF</a>}<button onClick={() => setEditing(row)}>Edit</button>
     <button className="danger" disabled={deleting === row._id} onClick={() => remove(row)}>Delete</button></div>;
   const selected = (data ?? []).find(row => row._id === profile);
   const classField = definition.fields.find(field => field.key === 'classId');
-  const editor = editing && <Editor definition={definition} values={editing} references={initialAdd && target?.classId && references.students ? { ...references, students: references.students.filter(row => row.classId === target.classId) } : references} save={save} close={() => setEditing(null)} />;
+  const editor = editing && <Editor definition={definition} values={editing} references={initialAdd && target?.classId && references.students ? { ...references, students: references.students.filter(row => row.classId === target.classId) } : references} save={save} close={() => setEditing(null)}
+    onDelete={module === 'calendar' && editing._id ? async () => { if (await remove(editing)) setEditing(null); } : undefined} />;
   if (module === 'students' && selected) return <>
     <Profile student={selected} group={display(selected, classField)} close={() => setProfile('')}
       edit={writable ? () => setEditing(selected) : undefined} />{editor}
@@ -177,7 +182,7 @@ function Records({ module, user, initialAdd, year, target }) {
         reload();
       },
     };
-    return <>{module === 'calendar' ? <CalendarApp {...componentProps} /> : <PersonalApp {...componentProps} module={module} />}{editor}</>;
+    return <>{module === 'calendar' ? <CalendarApp {...componentProps} requestMeeting={target?.meeting} /> : <PersonalApp {...componentProps} module={module} />}{editor}</>;
   }
   return <>
     <div className="title"><div><p className="breadcrumbs">Dashboard / {definition.group}</p><h1>{target?.label ?? definition.label}</h1></div>
