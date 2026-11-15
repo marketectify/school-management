@@ -171,7 +171,7 @@ function Mail({ user, messages, contacts, target, send, mark, refresh, loading }
       </section>
     </div>
     {reading && <Dialog title={reading.subject} close={() => setReading(null)}>
-      <p className="muted">{person(reading.from)} → {person(reading.to)} · {shortTime(reading.createdAt)}</p>
+      <p className="muted">{person(reading.from)} <Icon name="forward" /> {person(reading.to)} · {shortTime(reading.createdAt)}</p>
       <p className="wa-mail-body">{reading.body}</p>
       {reading.to === user.id && <IconButton icon="send" label="Reply" className="primary" onClick={() => {
         setCompose({ to: reading.from, subject: (/^Re:/i.test(reading.subject) ? reading.subject : 'Re: ' + reading.subject).slice(0,160) });

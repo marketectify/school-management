@@ -57,7 +57,7 @@
   gap: 6px;
 }
 
-.spotlight-icon {
+.spotlight-card .app-icon {
   flex: none;
   width: 1em;
   height: 1em;
@@ -84,14 +84,14 @@
   color: #ffbf28;
   font-size: 1.01rem;
   white-space: nowrap;
-  letter-spacing: .13em;
   line-height: 1.1;
 }
 
-.spotlight-stars-outline {
-  color: transparent;
-  -webkit-text-stroke: 1px #ffbf28;
+.spotlight-stars-outline, .spotlight-stars-fill {
+  display: flex;
+  gap: .13em;
 }
+.spotlight-stars-fill .app-icon { fill: currentColor; }
 
 .spotlight-stars-fill {
   position: absolute;

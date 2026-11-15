@@ -85,7 +85,7 @@
 .wa-chat-head button[aria-pressed=true]{color:var(--brand);background:var(--wa-bg)}
 .wa-call{padding:24px}
 .wa-call-stage{position:relative;display:grid;place-items:center;min-height:clamp(370px,65vh,625px);background:#3c5666;color:white;border-radius:13px;padding:47px 20px}
-.wa-call-timer{position:absolute;inset:22px auto auto 22px;background:#ffffff3b;display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:30px;font-weight:700}
+.wa-call-timer{position:absolute;inset-block-start:22px;inset-inline-start:22px;background:#ffffff3b;display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:30px;font-weight:700}
 .wa-call-timer i{width:13px;height:13px;border:3px solid #fff;border-radius:50%;background:#f12649}
 .wa-call-people{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(20px,8vw,110px);width:min(82%,780px)}
 .wa-call-person{display:grid;justify-items:center;align-content:start;text-align:center;gap:15px}
@@ -97,7 +97,7 @@
 .wa-call-placeholder svg{width:50%;height:50%;opacity:.7}
 .wa-call-glyph,.wa-call-chat{position:absolute;display:grid;place-items:center;color:white;background:#3c58df;border-radius:50%}
 .wa-call-glyph{width:36px;height:36px;bottom:10%}
-.wa-call-chat{inset:auto 22px 22px auto;width:55px;height:55px}
+.wa-call-chat{inset-block-end:22px;inset-inline-end:22px;width:55px;height:55px}
 .wa-call-controls,.wa-incoming{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
 .wa-call-controls{padding-top:28px}
 .wa-call-controls .wa-hangup{color:white;background:#ed2047;border:0;width:58px;height:58px;border-radius:50%}
@@ -182,7 +182,7 @@
 .wa-file-preview{display:block;width:100%;max-height:360px;object-fit:contain;margin:10px 0}
 .wa-file-choices{margin-bottom:13px}
 .wa-file-choices button[aria-pressed=true]{color:var(--brand);border-color:var(--brand)}
-.wa-file-table .wa-row-menu{position:fixed;inset:auto 32px 30px auto}
+.wa-file-table .wa-row-menu{position:fixed;inset-block-end:30px;inset-inline-end:32px}
 .wa-file-table .wa-text-button svg{margin-inline-end:6px;color:var(--brand)}
 .wa-mail-table .wa-text-button{white-space:normal}
 
@@ -294,7 +294,6 @@
 .top-us-flag::after{content:'';position:absolute;inset:0 auto auto 0;width:45%;height:55%;background:radial-gradient(circle,#fff 0 .45px,transparent .55px) 0 0/2.5px 2.5px,#344679}
 
 @media(min-width:1281px){
-  .layout:has(>.preskool-sidebar):not(.mini){grid-template-columns:clamp(252px,18vw,344px) minmax(0,1fr)}
   .preschool-top .top-control{min-width:51px}
   .preschool-top .top-control:has(.year-text){min-width:clamp(240px,18vw,343px);padding-inline:9px 14px}
   .preschool-top .top-control .year-text{margin-inline-end:auto;font-size:clamp(14px,.92vw,18px)}

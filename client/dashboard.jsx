@@ -152,13 +152,13 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
     const url=URL.createObjectURL(blob), link=document.createElement('a');
     link.href=url;link.download='admin-dashboard.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
-  const action=(key,label)=> <button className="erp-link" onClick={()=>go(key)}>{label} →</button>;
+  const action=(key,label)=> <button className="erp-link" onClick={()=>go(key)}>{label} <DashboardIcon name="forward" /></button>;
   return <div className="erp">
     <div className="erp-heading admin-masthead"><div><h1>Admin Dashboard</h1><p className="breadcrumbs">Dashboard / Admin Dashboard</p></div>
       <div className="actions"><select aria-label="Dashboard academic year" value={year} onChange={e=>onYear(e.target.value)}><option value="">All academic years</option>{years.map(y=><option key={y}>{y}</option>)}</select>
         <select value={period} aria-label="Report period" onChange={e=>setPeriod(e.target.value)}><option value="all">All time</option><option value="today">Today</option><option value="week">This Week</option><option value="month">This Month</option></select>
-        <details className="erp-menu"><summary>↓ Export</summary><div><button onClick={exportCSV}>Export CSV</button><button onClick={()=>window.print()}>Print / PDF</button></div></details>
-        <button onClick={refresh} aria-label="Refresh dashboard">↻</button><details className="erp-menu"><summary className="primary">⊕ Quick Add</summary><div>{[['students','New Student'],['teachers','New Teacher'],['staff','New Staff'],['exams','Create Exam'],['payments','Collect Fee'],['invoices','New Invoice']].map(([k,l])=><button key={k} onClick={()=>go(k,true)}>{l}</button>)}</div></details>
+        <details className="erp-menu"><summary><DashboardIcon name="download" /> Export</summary><div><button onClick={exportCSV}>Export CSV</button><button onClick={()=>window.print()}>Print / PDF</button></div></details>
+        <button onClick={refresh} aria-label="Refresh dashboard"><DashboardIcon name="refresh" /></button><details className="erp-menu"><summary className="primary"><DashboardIcon name="plus" /> Quick Add</summary><div>{[['students','New Student'],['teachers','New Teacher'],['staff','New Staff'],['exams','Create Exam'],['payments','Collect Fee'],['invoices','New Invoice']].map(([k,l])=><button key={k} onClick={()=>go(k,true)}>{l}</button>)}</div></details>
       </div></div>
     {error && <p className="error" role="alert">{error}</p>}
     {!data ? <p role="status">{error?'Dashboard data unavailable.':'Loading dashboard…'}</p> : <>
@@ -195,10 +195,10 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
       <Card section="Reach" title="Parent Engagement" footer={action('accounts','View accounts')}><Ring value={ratio(activeParents,parents.length)} label="Parents who sent a message"/>
         {[['Highly active',parentCounts.filter(n=>n>=3).length],['Active',parentCounts.filter(n=>n>0&&n<3).length],['No messages',parentCounts.filter(n=>n===0).length]].map(([l,n],i)=><Bar key={l} label={l} value={ratio(n,parents.length)} color={palette[i]}/>)}</Card>
       <Card section="Activity" title="Activity Timeline" footer={action('activity','View all activity')}>
-        {(data.activity??[]).slice(0,6).map(row=><div className="erp-list-row" key={row._id}><i>◇</i><div><strong>{row.title}</strong><small>{new Date(row.createdAt).toLocaleString()}</small></div><span className="pill">{row.kind}</span></div>)}
+        {(data.activity??[]).slice(0,6).map(row=><div className="erp-list-row" key={row._id}><i><DashboardIcon name="bell" /></i><div><strong>{row.title}</strong><small>{new Date(row.createdAt).toLocaleString()}</small></div><span className="pill">{row.kind}</span></div>)}
         {!data.activity?.length&&<p className="muted">New record activity will appear here.</p>}</Card>
       <Card section="Inbox" title="Recent Parent Messages" footer={action('messages','View all messages')}>
-        {inbox.filter(row=>sender(row)?.role==='parent').slice(0,3).map(row=><div className="erp-list-row" key={row._id}><i>✉</i><div><strong>{sender(row).name}</strong><p className="erp-snippet">{row.body}</p><button onClick={()=>go('messages',false,{to:row.from})}>Reply</button></div></div>)}
+        {inbox.filter(row=>sender(row)?.role==='parent').slice(0,3).map(row=><div className="erp-list-row" key={row._id}><i><DashboardIcon name="mail" /></i><div><strong>{sender(row).name}</strong><p className="erp-snippet">{row.body}</p><button onClick={()=>go('messages',false,{to:row.from})}>Reply</button></div></div>)}
         {!inbox.some(row=>sender(row)?.role==='parent')&&<p className="muted">No parent messages yet.</p>}</Card>
       <Card section="Delivery" title="Delivery Success" footer={action('delivery','Manage delivery logs')}><Ring value={ratio(delivered,delivered+failed)} label="Overall success rate" color="#18b833"/>
         {channels.map((name,i)=>{const rows=deliveries.filter(row=>row.channel===name);return <Bar key={name} label={name} value={ratio(sum(rows,'delivered'),sum(rows,'delivered')+sum(rows,'failed'))} color={palette[i]}/>;})}
@@ -212,7 +212,7 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
       <Card section="Inventory" title="Book Availability" footer={action('library','Library catalogue')}><Ring value={ratio(available,copies)} label={number(available)+' of '+number(copies)+' copies available'}/>
         <Stats items={[[ 'Issued',issued],['Reserved',reserved],['Low stock titles',books.filter(b=>b.copies-allLoans.filter(l=>l.bookId===b._id&&l.status!=='Returned').length<=2).length]]}/>
         {categories.map(([name,total],i)=>{const ids=new Set(books.filter(row=>(row.category||'Other')===name).map(row=>row._id));return <Bar key={name} label={name} value={ratio(Math.max(0,total-allLoans.filter(row=>ids.has(row.bookId)&&row.status!=='Returned').length),total)} color={palette[i%5]}/>;})}</Card>
-      <Card section="Trending" title="Most Borrowed Books" wide footer={action('loans','Full report')}><div>{books.map(book=>({...book,issues:loans.filter(row=>row.bookId===book._id&&row.status!=='Reserved').length})).filter(book=>book.issues).sort((a,b)=>b.issues-a.issues).slice(0,5).map((book,i)=><div className="erp-list-row" key={book._id}><span className="erp-rank">{i+1}</span><i className="erp-book-icon" style={{"--book":palette[i%5]}}>▤</i><div><strong>{book.name}</strong><small>{book.category||'Other'} · {book.author}</small></div><div className="erp-issue-count"><strong>{book.issues}</strong> issues<span className="erp-track"><i style={{width:Math.min(book.issues*10,100)+"%",background:palette[i%5]}}/></span></div></div>)}</div></Card>
+      <Card section="Trending" title="Most Borrowed Books" wide footer={action('loans','Full report')}><div>{books.map(book=>({...book,issues:loans.filter(row=>row.bookId===book._id&&row.status!=='Reserved').length})).filter(book=>book.issues).sort((a,b)=>b.issues-a.issues).slice(0,5).map((book,i)=><div className="erp-list-row" key={book._id}><span className="erp-rank">{i+1}</span><i className="erp-book-icon" style={{"--book":palette[i%5]}}><DashboardIcon name="book" /></i><div><strong>{book.name}</strong><small>{book.category||'Other'} · {book.author}</small></div><div className="erp-issue-count"><strong>{book.issues}</strong> issues<span className="erp-track"><i style={{width:Math.min(book.issues*10,100)+"%",background:palette[i%5]}}/></span></div></div>)}</div></Card>
       <Card section="Categories" title="Popular Categories"><div className="erp-bubbles">{categories.slice(0,5).map(([name,total],i)=><span key={name} style={{background:palette[i],width:56-i*5}} title={name}><strong>{ratio(total,copies)}%</strong><small>{name}</small></span>)}</div>
         {categories.map(([name,total],i)=><Bar key={name} label={name} value={ratio(total,copies)} meta={number(total)+' copies'} color={palette[i%5]}/>)}
         <Stats items={[[ 'Active readers',new Set(loans.filter(l=>l.status!=='Reserved').map(l=>l.studentId)).size],['Total borrowed',loans.filter(l=>l.status!=='Reserved').length]]}/></Card>
@@ -227,10 +227,10 @@ export default function Dashboard({ user, counts, go, year, years, onYear, schoo
         <Stats items={[[ 'Onboard',row.riders],['Trips',row.trips],['Distance',number(row.distance)+' km']]}/>
       </article>) : <p className="muted">No route logs in this period.</p>}</Card>
       <Card section="Schedule" title="Maintenance Timeline" footer={action('fleet','Fleet logs')}>{fleet.filter(row=>row.status==='Service').length ?
-        fleet.filter(row=>row.status==='Service').slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(row=><div className="erp-list-row" key={row._id}><i>⚙</i><div><strong>{routes.get(row.routeId)?.vehicle ?? 'Vehicle'}</strong><small>Service log</small></div><strong>{row.date}</strong></div>)
+        fleet.filter(row=>row.status==='Service').slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(row=><div className="erp-list-row" key={row._id}><i><DashboardIcon name="settings" /></i><div><strong>{routes.get(row.routeId)?.vehicle ?? 'Vehicle'}</strong><small>Service log</small></div><strong>{row.date}</strong></div>)
         : <p className="muted">No maintenance logs in this period.</p>}</Card>
       <Card section="Tracking" title="Fleet Route Directory" footer={action('transport','Manage routes')}>
-        {[...routes.values()].map(route=><div className="erp-list-row" key={route._id}><i>↗</i><div><strong>{route.name}</strong><small>{route.stops}</small></div><span className="pill">{route.vehicle}</span></div>)}
+        {[...routes.values()].map(route=><div className="erp-list-row" key={route._id}><i><DashboardIcon name="map" /></i><div><strong>{route.name}</strong><small>{route.stops}</small></div><span className="pill">{route.vehicle}</span></div>)}
         {!routes.size && <p className="muted">No routes added.</p>}
       </Card>
     </div></>}

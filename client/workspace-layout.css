@@ -1,0 +1,56 @@
+.app-icon{display:inline-block;vertical-align:middle;width:1.15em;height:1.15em;flex:none}
+[dir=rtl] .app-icon-directional{transform:scaleX(-1)}
+.layout{--sidebar-width:clamp(240px,18vw,344px);grid-template-columns:var(--sidebar-width) minmax(0,1fr);min-height:100dvh}
+.layout .workspace{min-width:0}
+.layout>.preskool-sidebar{z-index:10;height:100dvh;min-width:0}
+.layout.mini{--sidebar-width:76px}
+.layout.boxed{--sidebar-width:clamp(220px,18vw,268px);max-width:1440px;margin-inline:auto;min-height:100dvh;box-shadow:0 0 28px #17274419}
+:root:has(.layout.boxed) #root{background:#e9edf5}
+.layout.boxed>.workspace{background:var(--canvas)}
+.layout.boxed .preschool-top:has(.year-text) .top-control:has(.year-text){min-width:230px}
+.layout[dir=rtl] input[type=email],.layout[dir=rtl] input[type=url],.layout[dir=rtl] input[type=tel],
+.layout[dir=rtl] input[type=time],.layout[dir=rtl] input[type=date],.layout[dir=rtl] input[type=number]{direction:ltr;text-align:end}
+.layout[dir=rtl] .erp-plot text{direction:ltr}
+.pop-selected{display:grid;place-items:center;color:var(--brand)}
+.top-reference.pop-theme button[aria-pressed=true]{background:color-mix(in srgb,#4060ee 11%,var(--surface));color:var(--brand)}
+.top-reference .pop-footer .app-icon{margin-inline-start:4px;width:16px;height:16px}
+:root:has(.layout.dark),:root:has(.layout.dark) #root{background:#10121f;color-scheme:dark}
+.layout.dark{--text:#edf0ff;--link:#a3b4ff}
+.dark button:not(.primary):focus-visible,.dark select:focus-visible,.dark input:focus-visible,.dark textarea:focus-visible{outline-color:var(--link)}
+.dark .top-control[aria-expanded=true],.dark .top-reference .pop-tabs button[aria-pressed=true],
+.dark .erp-link,.dark .td-panel-heading h2>.app-icon,
+.dark .pop-footer,.dark .pop-selected,.dark .pop-soft-icon,.dark .top-reference.pop-theme button[aria-pressed=true],.dark .sd-updates .sd-update-link{color:var(--link)}
+.dark .error{color:#ffb5c4;background:#442435}
+.dark .danger,.dark .top-reference .pop-profile-links .danger{color:#ff9bb2}
+.dark .school-crest{background:#29334c}
+.dark .wa-day.today{background:#353024}
+.dark .wa-mail-rail button[aria-pressed=true],.dark .wa-rail button[aria-pressed=true]{background:#304372;color:#f2f5ff}
+.dark .wa-tag{color:color-mix(in srgb,var(--tone) 64%,#fff)}
+.dark .td-root{--dark-icon-tint:#252c41}
+.dark .td-root .td-blue,.dark .pd-root .pd-blue{--td-tone:#a5b2ff;--tone:#a5b2ff}
+.dark .td-root .td-green,.dark .pd-root .pd-green{--td-tone:#7be4a0;--tone:#7be4a0}
+.dark .td-root .td-gold,.dark .pd-root .pd-gold{--td-tone:#ffd185;--tone:#ffd185}
+.dark .td-root .td-sky,.dark .pd-root .pd-sky{--td-tone:#92c5ff;--tone:#92c5ff}
+.dark .td-root .td-purple,.dark .pd-root .pd-purple{--td-tone:#c9abff;--tone:#c9abff}
+.dark .td-root .td-cyan,.dark .pd-root .pd-cyan{--td-tone:#91e1ed;--tone:#91e1ed}
+.dark .td-root .td-red,.dark .pd-root .pd-red{--td-tone:#ff9bae;--tone:#ff9bae}
+.dark .td-root .td-pink,.dark .pd-root .pd-pink{--td-tone:#ffade0;--tone:#ffade0}
+.dark .td-root .td-icon{background:var(--dark-icon-tint)}
+.dark .sd-study-tip{background:#3a3021;color:#ffd185}
+.dark .erp-list-row>i:not(.erp-book-icon){color:var(--link)}
+.dark .wa-call-stage{background:#253b4d}
+.td-panel-heading h2>.app-icon,.td-panel-heading h2>span>.app-icon{width:19px;height:19px}
+.td-class-actions button .app-icon,.td-period button .app-icon,.erp-actions button .app-icon{width:17px;height:17px}
+.erp-list-row>i>.app-icon{width:18px;height:18px}
+@media(min-width:751px) and (max-width:1100px){.layout:not(.mini){--sidebar-width:218px}}
+@media(max-width:750px){
+  .layout,.layout.mini{display:block}
+  .layout>.preskool-sidebar{display:none;position:fixed;inset-block:0;inset-inline:0 auto;width:min(320px,87vw);height:100dvh;z-index:15;box-shadow:0 18px 42px #16224730}
+  .layout>.preskool-sidebar.open{display:flex}
+  .layout .mobile-menu{display:grid;place-items:center;padding:7px;margin-inline-end:0}
+}
+@media print{
+  .layout,.layout.mini{display:block}
+  .layout.boxed{max-width:none;box-shadow:none}
+  .layout>.preskool-sidebar,.layout .sidebar-backdrop{display:none!important}
+}
