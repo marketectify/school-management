@@ -16,6 +16,9 @@ import { api } from './api.js';
 import { CommunicationApp } from './workspace-communication.jsx';
 import { CalendarApp, PersonalApp } from './workspace-tools.jsx';
 import './workspace-apps.css';
+import './workspace-layout.css';
+import { Icon } from './icons.jsx';
+import { isLayout } from './workspace-layout.js';
 
 
 function Login({ onLogin }) {
@@ -296,8 +299,17 @@ function Workspace({ user, onLogout }) {
   const dashboard = useData('dashboard');
   const [view, setView] = useState({ key: 'dashboard', revision: 0 });
   const [nav, setNav] = useState(false);
+  useEffect(() => {
+    if (!nav) return;
+    const close = event => { if (event.key === 'Escape') setNav(false); };
+    document.addEventListener('keydown', close);
+    return () => document.removeEventListener('keydown', close);
+  }, [nav]);
   const [error, setError] = useState('');
-  const [layout, setLayout] = useState(() => localStorage.getItem('school-layout') || 'default');
+  const [layout, setLayout] = useState(() => {
+    const saved = localStorage.getItem('school-layout');
+    return isLayout(saved) ? saved : 'default';
+  });
   const [year,setYear] = useState(() => localStorage.getItem('school-year') ?? '');
   const [years,setYears] = useState([]);
   const [schools,setSchools] = useState([]);
@@ -337,33 +349,37 @@ function Workspace({ user, onLogout }) {
     } catch (err) { setError(err.message); }
   }
   function setDisplay(value) {
+    if (!isLayout(value)) return;
     localStorage.setItem('school-layout', value);
     setLayout(value);
+    setNav(false);
   }
   async function logout() {
     try { await api('auth/logout','POST',{}); localStorage.removeItem('school-campus'); onLogout(); }
     catch (err) { setError(err.message); }
   }
   return <div className={'layout ' + layout} dir={layout === 'rtl' ? 'rtl' : 'ltr'}>
-    <aside className={'preskool-sidebar' + (nav ? ' open' : '')}><div className="sidebar-brand"><Brand />
-      <button aria-label="Toggle compact sidebar" onClick={() => setDisplay(layout === 'mini' ? 'default' : 'mini')}>☰</button></div>
-      <div className="school-picker"><button className="school-name" aria-expanded={schoolOpen} onClick={() => setSchoolOpen(!schoolOpen)}>
+    {nav && <button type="button" className="sidebar-backdrop" aria-label="Close school menu" onClick={() => setNav(false)} />}
+    <aside id="school-sidebar" className={'preskool-sidebar' + (nav ? ' open' : '')}><div className="sidebar-brand"><Brand />
+      <button type="button" className="sidebar-compact-toggle" aria-pressed={layout === 'mini'} aria-label="Toggle compact sidebar" onClick={() => setDisplay(layout === 'mini' ? 'default' : 'mini')}><Icon name={layout === 'mini' ? 'panelCompact' : 'menu'} /></button>
+      <button type="button" className="sidebar-mobile-close" aria-label="Close sidebar" onClick={() => setNav(false)}><Icon name="close" /></button></div>
+      <div className="school-picker"><button className="school-name" aria-label={'Switch school, current school: ' + (campus?.name ?? 'Global International')} aria-expanded={schoolOpen} onClick={() => setSchoolOpen(!schoolOpen)}>
         <SchoolCrest />
         <span className="school-card-copy"><strong>{campus?.name ?? 'Global International'}</strong><small>{campus?.campus ?? 'School Management'}</small></span>
-        <svg className="school-card-chevron" viewBox="0 0 12 16" fill="none" aria-hidden="true"><path d="m3 6 3-3 3 3m-6 4 3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+        <span className="school-card-chevron"><Icon name="selector" /></span></button>
         {schoolOpen && <div className="school-options"><h2>Switch school</h2>
           <button className="school-option" aria-pressed={school === ''} onClick={() => switchSchool('')}><SchoolCrest />
-            <span><strong>Global International</strong><small>Primary campus</small></span>{school === '' && <span className="school-check" aria-hidden="true">✓</span>}</button>
+            <span><strong>Global International</strong><small>Primary campus</small></span>{school === '' && <span className="school-check"><Icon name="tick" /></span>}</button>
           {schools.map((row,index) => <button className="school-option" aria-pressed={school === row._id} onClick={() => switchSchool(row._id)} key={row._id}>
             <span className={'school-monogram school-color-'+index%4} aria-hidden="true">{row.name.trim()[0]?.toUpperCase()}</span>
-            <span><strong>{row.name}</strong><small>{row.campus}</small></span>{school === row._id && <span className="school-check" aria-hidden="true">✓</span>}</button>)}
+            <span><strong>{row.name}</strong><small>{row.campus}</small></span>{school === row._id && <span className="school-check"><Icon name="tick" /></span>}</button>)}
           {user.role === 'admin' && <div className="school-add-wrap"><button className="school-option school-add" onClick={() => { setAddingSchool(true); setSchoolOpen(false); }}>
-            <span className="school-monogram" aria-hidden="true">＋</span><strong>Add new school</strong></button></div>}
+            <span className="school-monogram"><Icon name="plusSmall" /></span><strong>Add new school</strong></button></div>}
         </div>}
       </div>
       <SidebarMenu user={user} modules={modules} view={view} go={go} layout={layout} setDisplay={setDisplay}
         openSchools={() => setSchoolOpen(true)} openTopMenu={key => setTopRequest({key})} />
-      <div className="sidebar-account"><button className="sidebar-profile" onClick={() => go('profile')}>
+      <div className="sidebar-account"><button className="sidebar-profile" aria-label={'My Profile, ' + user.name} onClick={() => go('profile')}>
         <span className="top-avatar">{user.name[0]}</span><span>{user.name}<small>{user.role}</small></span></button></div>
     </aside>
     <div className="workspace">
@@ -374,7 +390,7 @@ function Workspace({ user, onLogout }) {
           <div hidden={(user.role === "admin" && view.key === "dashboard") || user.role === "parent" || view.key === "preview-parent"}><p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
           <div className="title dashboard-heading"><h1 className="capitalize">{view.key.startsWith('preview-') ? view.key.slice(8) : user.role} Dashboard</h1>
             <div className="actions" hidden={user.role === "admin" && view.key === "dashboard"}><button onClick={dashboard.reload}>Refresh</button><button onClick={() => window.print()}>Print / PDF</button>
-            {user.role === 'admin' && <button className="primary" onClick={() => go('students',true)}>＋ Add Student</button>}</div></div>
+            {user.role === 'admin' && <button className="primary" onClick={() => go('students',true)}><Icon name="plus" /> Add Student</button>}</div></div>
           </div>{dashboard.loading && <p role="status">Loading dashboard…</p>}
           {dashboard.error && <p className="error" role="alert">{dashboard.error}</p>}
           {dashboard.data && (user.role === 'admin' && view.key === 'dashboard'
