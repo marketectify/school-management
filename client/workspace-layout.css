@@ -17,6 +17,8 @@
 :root:has(.layout.dark),:root:has(.layout.dark) #root{background:#10121f;color-scheme:dark}
 .layout.dark{--text:#edf0ff;--link:#a3b4ff}
 .dark button:not(.primary):focus-visible,.dark select:focus-visible,.dark input:focus-visible,.dark textarea:focus-visible{outline-color:var(--link)}
+.dark .top-control[aria-expanded=true],.dark .top-reference .pop-tabs button[aria-pressed=true],
+.dark .erp-link,.dark .td-panel-heading h2>.app-icon,
 .dark .pop-footer,.dark .pop-selected,.dark .pop-soft-icon,.dark .top-reference.pop-theme button[aria-pressed=true],.dark .sd-updates .sd-update-link{color:var(--link)}
 .dark .error{color:#ffb5c4;background:#442435}
 .dark .danger,.dark .top-reference .pop-profile-links .danger{color:#ff9bb2}
