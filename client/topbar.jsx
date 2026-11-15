@@ -1,6 +1,7 @@
 import { DashboardIcon } from './dashboard-hero.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import { layoutOptions } from './workspace-layout.js';
 import { Icon, IconButton, Person, shortTime, showDate } from './workspace-ui.jsx';
 
 const actions = [
@@ -116,7 +117,7 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
   }
   const control = (key, title, icon, badge) => <button className="top-control" aria-label={title} title={title} aria-expanded={menu === key} onClick={() => toggle(key)}>{icon}{badge > 0 && <b>{badge}</b>}</button>;
   return <header ref={root} className="preschool-top">
-    <button className="mobile-menu" aria-expanded={nav} onClick={() => setNav(!nav)}>Menu</button>
+    <button className="mobile-menu" aria-controls="school-sidebar" aria-expanded={nav} aria-label="Toggle school menu" onClick={() => setNav(!nav)}><Icon name="menu" /></button>
     <div className="top-search"><span className="top-search-icon"><DashboardIcon name="search"/></span><input ref={search} aria-label="Global search" placeholder="Search students, staff, invoices…" value={query} onFocus={() => setMenu('search')} onChange={event => { setQuery(event.target.value); setMenu('search'); }} />
       <span className="top-keys" aria-hidden="true"><kbd>{/Mac|iPhone|iPad/.test(navigator.platform)?'⌘':'Ctrl'}</kbd><kbd>K</kbd></span>
       {menu === 'search' && query.trim() && <section className="top-pop search-pop"><h3>Search results</h3>
@@ -145,15 +146,15 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
           {menu === 'apps' && <IconButton icon="settings" label="Workspace appearance" className="pop-soft-icon" onClick={() => setMenu('theme')} />}
           {menu === 'add' && <span className="pop-soft-icon"><Icon name="bolt" /></span>}
         </div>}
-        {menu === 'year' && ['',...years].map(value => <button className="pop-row" key={value} onClick={() => { setYear(value); setMenu(''); }}><Icon name="calendar" />{value || 'All academic years'}{value === year && <span className="pop-end">✓</span>}</button>)}
-        {menu === 'country' && regions.map(([flag,name,value]) => <button className="pop-row" key={value} onClick={() => { setLocale(value); localStorage.setItem('school-region',value); setMenu(''); }}>{flag} {name}{value === locale && <span className="pop-end">✓</span>}</button>)}
+        {menu === 'year' && ['',...years].map(value => <button className="pop-row" key={value} onClick={() => { setYear(value); setMenu(''); }}><Icon name="calendar" />{value || 'All academic years'}{value === year && <span className="pop-end pop-selected"><Icon name="tick" /></span>}</button>)}
+        {menu === 'country' && regions.map(([flag,name,value]) => <button className="pop-row" key={value} onClick={() => { setLocale(value); localStorage.setItem('school-region',value); setMenu(''); }}>{flag} {name}{value === locale && <span className="pop-end pop-selected"><Icon name="tick" /></span>}</button>)}
         {menu === 'add' && <><div className="pop-list">{actions.filter(([,key]) => modules.includes(key)).map(([label,key,icon,description], index) =>
           <button className="pop-row pop-add-row" key={key} onClick={() => open(key,true)}><span className={'pop-app-icon wa-' + ['blue','green','gold','purple','cyan','pink'][index]}><Icon name={icon} /></span><span><strong>{label}</strong><small>{description}</small></span></button>)}
           {allActions && [['New admission','admissions'],['Add class','classes'],['Add book','library'],['Create event','calendar']].filter(([,key]) => modules.includes(key)).map(([label,key]) =>
             <button className="pop-row" key={key} onClick={() => open(key,true)}><Icon name="plus" />{label}</button>)}</div>
-          <button className="pop-footer" onClick={() => setAllActions(!allActions)}>{allActions ? 'Show quick options' : 'View all options →'}</button></>}
-        {menu === 'theme' && [['default','Default','grid'],['mini','Mini','apps'],['rtl','RTL','arrow'],['boxed','Boxed','square'],['dark','Dark','moon']].map(([value,label,icon]) =>
-          <button className="pop-row" key={value} onClick={() => { setLayout(value); setMenu(''); }}><Icon name={icon} />{label}{layout === value && <span className="pop-end">✓</span>}</button>)}
+          <button className="pop-footer" onClick={() => setAllActions(!allActions)}>{allActions ? 'Show quick options' : <>View all options <Icon name="forward" /></>}</button></>}
+        {menu === 'theme' && layoutOptions.map(({id:value,label,icon}) =>
+          <button className="pop-row" key={value} aria-pressed={layout === value} onClick={() => { setLayout(value); setMenu(''); }}><Icon name={icon} />{label}{layout === value && <span className="pop-end pop-selected"><Icon name="tick" /></span>}</button>)}
         {menu === 'activity' && <><div className="pop-tabs">{['All','Unread','Alerts'].map(label => <button key={label} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}{label === 'Unread' && <span>{unreadActivity}</span>}</button>)}</div>
           <div className="pop-list">{activityRows.map(row => <div className={'pop-item pop-notice ' + (!row.read ? 'unread' : '')} key={row._id}>
             <span className={'pop-notice-icon ' + (row.kind === 'Alert' ? 'wa-red' : 'wa-blue')}><Icon name={row.kind === 'Alert' ? 'bell' : 'calendar'} /></span>
@@ -168,7 +169,7 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
             </div>
             {!row.read && <span className="wa-dot wa-blue pop-end" />}</div>)}
           {!activityRows.length && <p className="wa-empty">No matching notifications.</p>}</div>
-          <button className="pop-footer" onClick={() => open('activity')}>View all notifications →</button></>}
+          <button className="pop-footer" onClick={() => open('activity')}>View all notifications <Icon name="forward" /></button></>}
         {menu === 'messages' && <><label className="message-search"><Icon name="search" /><input aria-label="Search messages" placeholder="Search messages…" value={messageQuery} onChange={event => setMessageQuery(event.target.value)} /></label>
           <div className="pop-list">{visibleThreads.map(({key,peer,row,unread:count}) =>
             <button className={'pop-row pop-message ' + (count ? 'unread' : '')} key={key} onClick={() => open(row.channel === 'mail' ? 'email' : 'messages',false,
@@ -180,7 +181,7 @@ export default function TopBar({ user, go, modules, year, setYear, years, layout
         {menu === 'apps' && <><div className="app-links">{availableApps.map(([label,key,icon],index) =>
           <button key={label} onClick={() => open(key)}><span className={'pop-app-icon wa-' + accents[index]}><Icon name={icon} /></span>{label}</button>)}</div>
           {allApps && <div className="pop-list">{availableApps.map(([label,key,icon]) => <button className="pop-row" key={key} onClick={() => open(key)}><Icon name={icon} />{label}</button>)}</div>}
-          <button className="pop-footer" onClick={() => setAllApps(!allApps)}>{allApps ? 'Hide app directory' : 'Browse all apps →'}</button></>}
+          <button className="pop-footer" onClick={() => setAllApps(!allApps)}>{allApps ? 'Hide app directory' : <>Browse all apps <Icon name="forward" /></>}</button></>}
         {menu === 'profile' && <><div className="pop-profile-identity"><Person name={user.name} presence />
           <span><strong>{user.name}</strong><small>{user.email}</small></span><b>{user.role}</b></div>
           <div className="pop-profile-links">{allowedProfile.map(([label,key,icon]) => <button key={label} className="pop-row"
