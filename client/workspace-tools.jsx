@@ -11,13 +11,14 @@ function addDays(value, count) {
   return result;
 }
 
-export function CalendarApp({ user, rows, loading, error, edit }) {
+export function CalendarApp({ user, rows, loading, error, edit, requestMeeting }) {
   const [focus, setFocus] = useState(() => new Date());
   const [mode, setMode] = useState('Month');
   const [categories, setCategories] = usePreferences(user, 'calendar-categories', defaults);
   const [removeAfter, setRemoveAfter] = useState(false);
   const [add, setAdd] = useState(false);
   const [selected, setSelected] = useState('');
+  const [meeting, setMeeting] = useState(Boolean(requestMeeting));
   const first = new Date(focus.getFullYear(), focus.getMonth(), 1);
   const start = mode === 'Month' ? addDays(first, -first.getDay()) : mode === 'Week' ? addDays(focus, -focus.getDay()) : focus;
   const period = mode === 'Month' ? Math.ceil((first.getDay() + new Date(focus.getFullYear(),focus.getMonth() + 1,0).getDate()) / 7) * 7 : mode === 'Week' ? 7 : 1;
@@ -33,7 +34,7 @@ export function CalendarApp({ user, rows, loading, error, edit }) {
     setSelected('');
   }
   return <div className="wa-app">
-    <PageTitle title="Calendar"><IconButton icon="plus" label="Create Event" className="primary" onClick={() => edit({ date:localDay(focus), start:'09:00' })}>Create Event</IconButton></PageTitle>
+    <PageTitle title="Calendar">{['parent','admin'].includes(user.role) && <IconButton icon="users" label="Request Meeting" onClick={() => setMeeting(true)}>Request Meeting</IconButton>}<IconButton icon="plus" label="Create Event" className="primary" onClick={() => edit({ date:localDay(focus), start:'09:00' })}>Create Event</IconButton></PageTitle>
     {error && <p className="error" role="alert">{error}</p>}
     <div className="wa-split">
       <div className="wa-calendar-sidebar">
@@ -66,6 +67,7 @@ export function CalendarApp({ user, rows, loading, error, edit }) {
         </div></div>
       </section>
     </div>
+    {meeting && <MeetingRequest close={() => setMeeting(false)} date={localDay(focus)} />}
     {add && <Dialog title="Add category" close={() => setAdd(false)}><form onSubmit={event => {
       event.preventDefault();
       const value = new FormData(event.currentTarget).get('name').trim();
@@ -73,6 +75,41 @@ export function CalendarApp({ user, rows, loading, error, edit }) {
       setAdd(false);
     }}><label>Event category<input name="name" required maxLength={120} /></label><button className="primary">Save category</button></form></Dialog>}
   </div>;
+}
+
+function MeetingRequest({ close, date }) {
+  const [contacts,setContacts] = useState([]);
+  const [error,setError] = useState('');
+  const [busy,setBusy] = useState(false);
+  const [sent,setSent] = useState(false);
+  useEffect(() => {
+    let active = true;
+    api('workspace/contacts').then(rows => {
+      if (active) setContacts(rows.filter(row => ['teacher','admin'].includes(row.role)));
+    }, err => { if (active) setError(err.message); });
+    return () => { active = false; };
+  }, []);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true); setError('');
+    try {
+      await api('workspace/appointments','POST',Object.fromEntries(new FormData(event.currentTarget)));
+      setSent(true);
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+  return <Dialog title="Request a meeting" close={() => { if (!busy) close(); }}>
+    {sent ? <><p role="status">Meeting request sent. Its status will appear in Notifications.</p>
+      <button className="primary" onClick={close}>Done</button></> : <form onSubmit={submit}>
+      <label>School contact<select name="to" required><option value="">Choose a teacher or administrator</option>
+        {contacts.map(row => <option key={row._id} value={row._id}>{row.name}</option>)}</select></label>
+      <label>Date<input type="date" name="date" defaultValue={date} required /></label>
+      <label>Time<input type="time" name="time" defaultValue="14:00" required /></label>
+      <label>Reason<textarea name="reason" required maxLength={300} /></label>
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="primary" disabled={busy || !contacts.length}>{busy ? 'Sending…' : 'Send request'}</button>
+    </form>}
+  </Dialog>;
 }
 
 const labels = {
