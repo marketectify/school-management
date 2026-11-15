@@ -160,7 +160,7 @@ export default function ParentDashboard({user,year,go}) {
         <div className="pd-child-header"><div className="pd-attendance-avatar" style={{'--pd-ring':(info.rate??0)+'%','--pd-color':i%2?'#1368d1':'#16b827'}}><HeroAvatar kind="student" name={row.name} demo={demo(row)}/><b>{show(info.rate)}</b></div>
           <div><h3>{row.name}</h3><small>{className(row)}</small>{info.todayRecord&&<span className={'pd-chip pd-'+(present(info.todayRecord)?'green':'red')}>{info.todayRecord.status} today</span>}</div><span className={'pd-chip pd-'+(info.pending.length?'gold':'green')}>{info.pending.length?info.pending.length+' HW':'No HW'}</span></div>
         <div className="pd-child-metrics">{[['Avg Marks',show(info.average)],['Attendance',show(info.rate)],['Assignments',info.pending.length],['Next Exam',info.next?within(info.next.date,today)+'d':'—']].map(([name,value])=><div key={name}><small>{name}</small><strong>{value}</strong></div>)}</div>
-        <div className="pd-child-foot"><Action icon="grid" onClick={()=>{select(row._id);setDialog('timetable');}}>Timetable</Action><Action icon="arrow" onClick={profile(row)}>Details ›</Action></div>
+        <div className="pd-child-foot"><Action icon="grid" onClick={()=>{select(row._id);setDialog('timetable');}}>Timetable</Action><Action icon="next" onClick={profile(row)}>Details</Action></div>
       </article>;})}</div>
     </Section>
     <Section caption={first+' · Academic Health'} title="Subject Vitals" icon="arrow" action={<span className="pd-hint">Select More for results</span>}>
