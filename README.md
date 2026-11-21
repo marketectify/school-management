@@ -69,6 +69,6 @@ The dashboard reads attendance, exam results, admissions, fee payments, internal
 
 Use the repository root, the Express preset, Node.js 24.x and npm. Set the entry file to `server.cjs`. This CommonJS launcher loads the API with `import()` so Hostinger's `require()` launcher supports the API's asynchronous ES module initialization. `npm start` uses the same entry.
 
-Run `npm run build` during deployment to generate `dist`. The API serves this React build alongside `/api`. Set `MONGODB_URI` to the Atlas database connection string and `COOKIE_SECURE=true` for the HTTPS website. The server uses the hosting-provided `PORT` when available.
+The npm installation builds the React frontend automatically. The required build tools are production dependencies so this also works when development dependencies are omitted. `server.cjs` creates a missing build before loading the API. The API locates `dist` relative to its own source directory, including when the hosting launcher uses another working directory. You can also run `npm run build` explicitly. The API serves this React build alongside `/api`. Set `MONGODB_URI` to the Atlas database connection string and `COOKIE_SECURE=true` for the HTTPS website. The server uses the hosting-provided `PORT` when available.
 
 After merging a startup change, update the entry file in Hostinger's deployment settings and redeploy the selected branch. Check runtime logs for the listening message, then open `/api/health`. A successful connection returns `{"ready":true}`.
