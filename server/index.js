@@ -6,6 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { frontendDirectory } from './frontend.js';
 import { catalog, roles } from '../catalog.js';
 import { connect, models, Session, User } from './db.js';
 import { hashPassword, login, logout, publicUser, requireUser } from './auth.js';
@@ -212,7 +213,7 @@ app.delete('/api/records/:collection/:id', async (req, res) => {
 });
 
 app.use('/api', (_req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
-const dist = resolve('dist');
+const dist = frontendDirectory;
 if (existsSync(dist)) {
   app.use(express.static(dist));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve(dist, 'index.html')));
