@@ -11,7 +11,8 @@
     "start": "node --env-file-if-exists=.env server.cjs",
     "seed": "node --env-file-if-exists=.env server/seed.js",
     "test": "node --test",
-    "seed:demo": "node --env-file-if-exists=.env server/seed-demo.js"
+    "seed:demo": "node --env-file-if-exists=.env server/seed-demo.js",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "express": "^5.1.0",
@@ -19,11 +20,11 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "express-rate-limit": "^7.5.1",
-    "helmet": "^8.1.0"
+    "helmet": "^8.1.0",
+    "vite": "^7.0.0",
+    "@vitejs/plugin-react": "^4.5.2"
   },
   "devDependencies": {
-    "vite": "^7.0.0",
-    "concurrently": "^9.1.2",
-    "@vitejs/plugin-react": "^4.5.2"
+    "concurrently": "^9.1.2"
   }
 }
