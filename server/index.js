@@ -4,7 +4,8 @@ import { acceptsOrigin } from './origin.js';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import mongoose from 'mongoose';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { frontendDirectory } from './frontend.js';
 import { catalog, roles } from '../catalog.js';
@@ -215,6 +216,24 @@ app.delete('/api/records/:collection/:id', async (req, res) => {
 app.use('/api', (_req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
 const dist = frontendDirectory;
 if (existsSync(dist)) {
+  const publicDirectory = fileURLToPath(new URL('../public/', import.meta.url));
+  app.get(['/social-preview-v1.png', '/social-preview-v2.jpg'], (req, res) => {
+    res.set({
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=86400',
+    });
+    res.sendFile(resolve(publicDirectory, req.path.slice(1)));
+  });
+  app.get(['/', '/share'], (req, res) => {
+    let html = readFileSync(resolve(dist, 'index.html'), 'utf8');
+    if (req.path === '/share') {
+      html = html
+        .replace('<link rel="canonical" href="https://school-management.marketectify.com/">', '<link rel="canonical" href="https://school-management.marketectify.com/share">')
+        .replace('<meta property="og:url" content="https://school-management.marketectify.com/">', '<meta property="og:url" content="https://school-management.marketectify.com/share">');
+    }
+    res.set('Cache-Control', 'no-cache, max-age=0, must-revalidate').type('html').send(html);
+  });
   app.use(express.static(dist));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve(dist, 'index.html')));
 }
