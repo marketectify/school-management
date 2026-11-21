@@ -47,6 +47,28 @@ test('hosting entry serves the built frontend from an unrelated working director
     const html = await response.text();
     assert.match(html, /<div id="root"><\/div>/);
     assert.doesNotMatch(html, /Cannot GET/);
+    const meta = property => html.match(new RegExp('<meta property="' + property + '" content="([^"]+)"'))?.[1];
+    assert.equal(meta('og:title'), 'School Management | Marketectify');
+    assert.equal(meta('og:type'), 'website');
+    assert.equal(meta('og:url'), 'https://school-management.marketectify.com/');
+    assert.ok(meta('og:description'));
+    assert.ok(meta('og:image:alt'));
+    assert.match(html, /name="twitter:card" content="summary_large_image"/);
+
+    const image = new URL(meta('og:image'));
+    assert.equal(image.origin, 'https://school-management.marketectify.com');
+    const preview = await fetch(origin + image.pathname, { headers: { 'User-Agent': 'WhatsApp/2.25' } });
+    assert.equal(preview.status, 200, 'Link crawlers can fetch the preview without signing in');
+    assert.match(preview.headers.get('content-type'), /image\/png/);
+    const bytes = Buffer.from(await preview.arrayBuffer());
+    assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.equal(bytes.readUInt32BE(16), Number(meta('og:image:width')));
+    assert.equal(bytes.readUInt32BE(20), Number(meta('og:image:height')));
+    assert.equal(bytes.readUInt32BE(16), 1200);
+    assert.equal(bytes.readUInt32BE(20), 630);
+    const favicon = await fetch(origin + '/favicon.svg');
+    assert.equal(favicon.status, 200);
+    assert.match(favicon.headers.get('content-type'), /image\/svg\+xml/);
     const script = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
     assert.ok(script, 'HTML references the built frontend JavaScript');
     const asset = await fetch(new URL(script, origin));
