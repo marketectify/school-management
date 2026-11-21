@@ -64,3 +64,11 @@ Admin accounts can preview each dashboard layout with school data. Actual studen
 ## Admin dashboard reporting
 
 The dashboard reads attendance, exam results, admissions, fee payments, internal messages and activity from the app. Library loans, fleet logs and delivery logs are editable from their modules. Delivery charts report entered delivery counts. The demo seed adds sample records to those modules. Run npm run seed:demo after pulling the upgrade.
+
+## Hostinger deployment
+
+Use the repository root, the Express preset, Node.js 24.x and npm. Set the entry file to `server.cjs`. This CommonJS launcher loads the API with `import()` so Hostinger's `require()` launcher supports the API's asynchronous ES module initialization. `npm start` uses the same entry.
+
+Run `npm run build` during deployment to generate `dist`. The API serves this React build alongside `/api`. Set `MONGODB_URI` to the Atlas database connection string and `COOKIE_SECURE=true` for the HTTPS website. The server uses the hosting-provided `PORT` when available.
+
+After merging a startup change, update the entry file in Hostinger's deployment settings and redeploy the selected branch. Check runtime logs for the listening message, then open `/api/health`. A successful connection returns `{"ready":true}`.

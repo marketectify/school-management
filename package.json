@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env server/dev.js",
     "build": "vite build",
-    "start": "node --env-file-if-exists=.env server/index.js",
+    "start": "node --env-file-if-exists=.env server.cjs",
     "seed": "node --env-file-if-exists=.env server/seed.js",
     "test": "node --test",
     "seed:demo": "node --env-file-if-exists=.env server/seed-demo.js"
