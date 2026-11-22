@@ -100,6 +100,13 @@ test('hosting entry serves the built frontend from an unrelated working director
     const deepLink = await fetch(origin + '/dashboard');
     assert.equal(deepLink.status, 200);
     assert.equal(await deepLink.text(), html);
+    const config = await fetch(origin + '/api/auth/config');
+    assert.equal(config.status, 200);
+    const flags = await config.json();
+    assert.equal(typeof flags.email, 'boolean');
+    assert.equal(typeof flags.google, 'boolean');
+    const profile = await fetch(origin + '/api/auth/username', { method: 'PUT', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify({ username: 'not-authenticated' }) });
+    assert.equal(profile.status, 401);
     const api = await fetch(origin + '/api/auth/me');
     assert.equal(api.status, 401);
   } finally {
@@ -111,3 +118,4 @@ test('hosting entry serves the built frontend from an unrelated working director
     await rm(directory, { recursive: true, force: true });
   }
 });
+

@@ -139,6 +139,7 @@ export function UserEditor({
           {[
             ["name", "Full name", "text"],
             ["email", "Email address", "email"],
+            ["username", "Username (optional)", "text"],
             ["phone", "Phone number", "tel"],
             ["department", "Department", "text"],
             ["branch", "Branch", "text"],

@@ -24,28 +24,9 @@ const AdministrationRoles = React.lazy(() => import('./admin-roles.jsx').then(mo
 const RequestsPage = React.lazy(() => import('./admin-requests.jsx').then(module => ({ default:module.RequestsPage })));
 import './administration.css';
 import { allowed } from '../administration.js';
+const Authentication = React.lazy(() => import('./authentication.jsx'));
+const AccountSecurity = React.lazy(() => import('./authentication.jsx').then(module => ({default:module.AccountSecurity})));
 
-
-function Login({ onLogin }) {
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      onLogin(await api('auth/login', 'POST', Object.fromEntries(new FormData(event.currentTarget))));
-    } catch (err) { setError(err.message); }
-    finally { setBusy(false); }
-  }
-  return <main className="login"><form onSubmit={submit}>
-    <Brand /><h1>Sign in</h1>
-    <label>Email<input name="email" type="email" autoComplete="username" required /></label>
-    <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-    {error && <p role="alert" className="error">{error}</p>}
-    <button className="primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-  </form></main>;
-}
 
 function Brand() {
   return <div className="brand"><span aria-hidden="true">S</span><span className="brand-name">School Management</span></div>;
@@ -242,7 +223,7 @@ function SchoolCrest() {
   return <span className="school-crest" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 3 22 6v7c0 5-4 8-8 10-4-2-8-5-8-10V6z" fill="#fff" stroke="#889bce"/><path d="m10 12 4-2 4 2-4 2-4-2Zm2 2v3l2 1 2-1v-3" stroke="#4059ba" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 6v2m-1-1h2" stroke="#e75a90" strokeLinecap="round"/><path d="M8 24h12" stroke="#4059ba" strokeWidth="1.2" strokeLinecap="round"/></svg></span>;
 }
 
-function Workspace({ user, onLogout }) {
+function Workspace({ user, onLogout, onUserChange }) {
   const dashboard = useData('dashboard');
   const [view, setView] = useState({ key: 'dashboard', revision: 0 });
   const [nav, setNav] = useState(false);
@@ -349,7 +330,7 @@ function Workspace({ user, onLogout }) {
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
         </> : view.key === 'roles' ? <AdministrationRoles user={user} go={go} /> : view.key === 'deletion-requests' ? <RequestsPage key={view.revision} user={user} target={view.target} initialAdd={view.add}/> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <UsersPage key={view.revision} user={user} go={go} roleFilter={view.target?.status} /> : ['messages','email','contacts'].includes(view.key) ? <CommunicationApp key={view.revision} mode={view.key}
           user={user} target={view.target} go={go} onChange={() => setRefresh(value => value + 1)} />
-        : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section>{view.target?.security && <section className="panel"><h2>Privacy &amp; Security</h2><p>Signed in as {user.email}.</p><button onClick={logout}>Sign out of this session</button></section>}</>
+        : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section><AccountSecurity user={user} finish={logout} updated={onUserChange}/>{view.target?.security && <section className="panel"><h2>Privacy &amp; Security</h2><p>Signed in as {user.email}.</p><button onClick={logout}>Sign out of this session</button></section>}</>
         : <Records key={view.revision} module={view.key} user={user} initialAdd={view.add} year={year} target={view.target} />}
       </React.Suspense></main>
     </div>
@@ -372,9 +353,9 @@ function App() {
     });
   }, []);
   if (user === undefined) return <main className="content" role="status">Opening school management…</main>;
-  return user ? <Workspace user={user} onLogout={() => setUser(null)} /> : <>
+  return user ? <Workspace user={user} onLogout={() => setUser(null)} onUserChange={account=>setUser(previous=>({...previous,...account}))} /> : <>
     {error && <p className="startup-error error" role="alert">{error}</p>}
-    <Login onLogin={account => { setError(''); setUser(account); }} />
+    <React.Suspense fallback={<main className="content" role="status">Opening sign in…</main>}><Authentication onLogin={account => { setError(''); setUser(account); }} /></React.Suspense>
   </>;
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 
 const paths = {
+  eyeOff:'M3 3l18 18M9 5a12 12 0 0 1 3 0c6 0 10 7 10 7a19 19 0 0 1-3 4m-3 2a11 11 0 0 1-4 1C6 19 2 12 2 12a20 20 0 0 1 4-5m4 3a3 3 0 0 0 4 4',
   copy:'M8 8h13v13H8zM16 8V3H3v13h5',
   expand:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6',
   ban:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM6 6l12 12',
