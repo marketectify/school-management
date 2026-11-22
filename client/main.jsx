@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { catalog, roles } from '../catalog.js';
+import { catalog } from '../catalog.js';
 import './style.css';
 import './upgrade.css';
 import Dashboard from './dashboard.jsx';
@@ -19,6 +19,11 @@ import './workspace-apps.css';
 import './workspace-layout.css';
 import { Icon } from './icons.jsx';
 import { isLayout } from './workspace-layout.js';
+const UsersPage = React.lazy(() => import('./admin-users.jsx').then(module => ({ default:module.UsersPage })));
+const AdministrationRoles = React.lazy(() => import('./admin-roles.jsx').then(module => ({ default:module.RolesPage })));
+const RequestsPage = React.lazy(() => import('./admin-requests.jsx').then(module => ({ default:module.RequestsPage })));
+import './administration.css';
+import { allowed } from '../administration.js';
 
 
 function Login({ onLogin }) {
@@ -233,64 +238,6 @@ function Records({ module, user, initialAdd, year, target }) {
   </>;
 }
 
-function Accounts({ roleFilter }) {
-  const { data, error, loading, reload } = useData('users');
-  const students = useData('records/students');
-  const [role, setRole] = useState('teacher');
-  const [notice, setNotice] = useState('');
-  const [errorText, setErrorText] = useState('');
-  const [busy, setBusy] = useState(false);
-  async function submit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const fields = new FormData(form);
-    setBusy(true);
-    setErrorText('');
-    setNotice('');
-    try {
-      await api('users', 'POST', { ...Object.fromEntries(fields), studentIds: fields.getAll('studentIds') });
-      form.reset();
-      setRole('teacher');
-      setNotice('Account created.');
-      reload();
-    } catch (err) { setErrorText(err.message); }
-    finally { setBusy(false); }
-  }
-  return <><h1>{roleFilter === "parent" ? "Parents" : "User accounts"}</h1><div className="account-layout">
-    <form className="panel" onSubmit={submit}><h2>Create account</h2>
-      <label>Name<input name="name" maxLength={120} required /></label>
-      <label>Email<input name="email" type="email" maxLength={254} required /></label>
-      <label>Password<input name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>
-      <label>Role<select name="role" value={role} onChange={event => setRole(event.target.value)}>
-        {roles.map(value => <option key={value}>{value}</option>)}
-      </select></label>
-      {['parent', 'student'].includes(role) && <label>Linked students<select key={role} name="studentIds" multiple={role === 'parent'} required defaultValue={role === 'parent' ? [] : ''}>
-        {role === 'student' && <option value="">Choose a student</option>}
-        {students.data?.map(row => <option key={row._id} value={row._id}>{row.name} · {row.admission}</option>)}
-      </select></label>}
-      {(errorText || students.error) && <p className="error" role="alert">{errorText || students.error}</p>}
-      {notice && <p role="status">{notice}</p>}
-      <button className="primary" disabled={busy}>Create account</button>
-    </form>
-    <section className="panel"><h2>Account directory</h2>{loading && <p>Loading…</p>}
-      {error && <p className="error" role="alert">{error}</p>}
-      <ul className="accounts">{data?.filter(item => !roleFilter || item.role === roleFilter).map(item => <li key={item._id}><strong>{item.name}</strong>
-        <span>{item.email}</span><span className="pill">{item.role}</span></li>)}</ul>
-    </section></div></>;
-}
-
-
-function RolesPage() {
-  const entries = [
-    ['Admin', 'Manage school records, schools and user accounts.'],
-    ['Teacher', 'Read academic records and manage homework, attendance and marks.'],
-    ['Student', 'Read their own student, class and fee records.'],
-    ['Parent', 'Read records for their linked students.'],
-  ];
-  return <><h1>Roles & Permissions</h1><div className="grid">{entries.map(([role,access]) =>
-    <article className="panel" key={role}><h2>{role}</h2><p>{access}</p></article>)}</div></>;
-}
-
 function SchoolCrest() {
   return <span className="school-crest" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 3 22 6v7c0 5-4 8-8 10-4-2-8-5-8-10V6z" fill="#fff" stroke="#889bce"/><path d="m10 12 4-2 4 2-4 2-4-2Zm2 2v3l2 1 2-1v-3" stroke="#4059ba" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 6v2m-1-1h2" stroke="#e75a90" strokeLinecap="round"/><path d="M8 24h12" stroke="#4059ba" strokeWidth="1.2" strokeLinecap="round"/></svg></span>;
 }
@@ -321,6 +268,7 @@ function Workspace({ user, onLogout }) {
   const modules = Object.keys(dashboard.data ?? {});
   const campus = schools.find(row => row._id === school);
   useEffect(() => {
+    if (!allowed(user,'schools')) { setSchools([]); return; }
     api('workspace/schools').then(setSchools, err => setError(err.message));
   }, []);
   useEffect(() => {
@@ -385,7 +333,7 @@ function Workspace({ user, onLogout }) {
     <div className="workspace">
       <TopBar user={user} go={go} modules={modules} year={year} setYear={value => { setYear(value); localStorage.setItem('school-year',value); }}
         years={years} layout={layout} setLayout={setDisplay} nav={nav} setNav={setNav} logout={logout} school={school} refresh={refresh} menuRequest={topRequest} />
-      <main className="content">{error && <p className="error" role="alert">{error}</p>}
+      <main className="content"><React.Suspense fallback={<p role="status">Opening administration…</p>}>{error && <p className="error" role="alert">{error}</p>}
         {view.key === 'dashboard' || view.key.startsWith('preview-') ? <>
           <div hidden={(user.role === "admin" && view.key === "dashboard") || user.role === "parent" || view.key === "preview-parent"}><p className="breadcrumbs">Dashboard / {view.key.startsWith('preview-') ? view.key.slice(8) : user.role}</p>
           <div className="title dashboard-heading"><h1 className="capitalize">{view.key.startsWith('preview-') ? view.key.slice(8) : user.role} Dashboard</h1>
@@ -399,11 +347,11 @@ function Workspace({ user, onLogout }) {
             : user.role === 'student' || view.key === 'preview-student' ? <StudentDashboard key={school + view.key} user={user} year={year} go={go} openNotifications={() => setTopRequest({key:'activity'})} />
             : user.role === 'parent' || view.key === 'preview-parent' ? <ParentDashboard key={school + view.key} user={user} year={year} go={go} />
             : <RoleDashboard key={school + view.key} role={view.key.startsWith('preview-') ? view.key.slice(8) : user.role} year={year} go={go} />)}
-        </> : view.key === 'roles' ? <RolesPage /> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <Accounts key={view.revision} roleFilter={view.target?.status} /> : ['messages','email','contacts'].includes(view.key) ? <CommunicationApp key={view.revision} mode={view.key}
+        </> : view.key === 'roles' ? <AdministrationRoles user={user} go={go} /> : view.key === 'deletion-requests' ? <RequestsPage key={view.revision} user={user} target={view.target} initialAdd={view.add}/> : view.key === 'module-info' ? <ModuleInfo title={view.target.label} /> : view.key === 'accounts' ? <UsersPage key={view.revision} user={user} go={go} roleFilter={view.target?.status} /> : ['messages','email','contacts'].includes(view.key) ? <CommunicationApp key={view.revision} mode={view.key}
           user={user} target={view.target} go={go} onChange={() => setRefresh(value => value + 1)} />
         : view.key === 'activity' ? <ActivityPage /> : view.key === 'profile' ? <><h1>My Profile</h1><section className="panel"><h2>{user.name}</h2><p>{user.email}</p><span className="pill">{user.role}</span></section>{view.target?.security && <section className="panel"><h2>Privacy &amp; Security</h2><p>Signed in as {user.email}.</p><button onClick={logout}>Sign out of this session</button></section>}</>
         : <Records key={view.revision} module={view.key} user={user} initialAdd={view.add} year={year} target={view.target} />}
-      </main>
+      </React.Suspense></main>
     </div>
     {addingSchool && <div className="overlay"><section className="modal" role="dialog" aria-modal="true" aria-label="Add new school">
       <h2>Add new school</h2><form onSubmit={addSchool}><label>School name<input name="name" maxLength={120} required /></label>

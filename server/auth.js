@@ -1,6 +1,8 @@
 import { createHash, randomBytes, scrypt as derive, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { Session, User } from './db.js';
+import { AdminRole } from './admin-models.js';
+import { systemRoles } from '../administration.js';
 
 const scrypt = promisify(derive);
 const duration = 8 * 60 * 60 * 1000;
@@ -20,7 +22,15 @@ export async function verifyPassword(password, hash) {
 }
 
 const fallbackHash = '0'.repeat(32) + ':' + '0'.repeat(128);
-export const publicUser = user => ({ id: user.id, name: user.name, email: user.email, role: user.role, studentIds: user.studentIds });
+export const publicUser = user => ({ id: user.id, name: user.name, email: user.email, role: user.role, roleId:user.roleId, status:user.status || 'Active', studentIds: user.studentIds, access:user.access });
+export async function loadAccess(user) {
+  if (!user || (user.status && user.status !== 'Active')) return false;
+  if (!user.roleId) return true;
+  const profile = systemRoles.find(role => role._id === user.roleId) || (/^[a-f0-9]{24}$/i.test(user.roleId) ? await AdminRole.findById(user.roleId) : null);
+  if (!profile || profile.status !== 'Active' || profile.baseRole !== user.role) return false;
+  user.access = [...profile.permissions];
+  return true;
+}
 
 export async function login(req, res) {
   const { email, password } = req.body ?? {};
@@ -30,10 +40,12 @@ export async function login(req, res) {
   const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+passwordHash');
   const valid = await verifyPassword(password, user?.passwordHash ?? fallbackHash);
   if (!user || !valid) return res.status(401).json({ message: 'Email or password is incorrect.' });
+  if (!await loadAccess(user)) return res.status(403).json({ message:'This account is not active. Contact your administrator.' });
   const previous = readToken(req);
   if (previous) await Session.deleteOne({ digest: digest(previous) });
   const token = randomBytes(32).toString('hex');
   await Session.create({ digest: digest(token), userId: user.id, expiresAt: new Date(Date.now() + duration) });
+  await User.updateOne({ _id:user._id }, { $set:{ lastLogin:new Date() } });
   res.cookie(cookie, token, { ...options, maxAge: duration }).json(publicUser(user));
 }
 
@@ -41,7 +53,7 @@ export async function requireUser(req, res, next) {
   const token = readToken(req);
   const session = token && await Session.findOne({ digest: digest(token), expiresAt: { $gt: new Date() } });
   req.user = session && await User.findById(session.userId);
-  if (!req.user) return res.status(401).json({ message: 'Please sign in.' });
+  if (!await loadAccess(req.user)) return res.status(401).json({ message: 'Please sign in with an active account.' });
   next();
 }
 

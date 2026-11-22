@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { sections } from './sidebar-menu.js';
 import { Icon } from './icons.jsx';
 import { layoutOptions } from './workspace-layout.js';
+import { allowed } from '../administration.js';
 import './sidebar.css';
 
 const applicationLabels = {
@@ -61,6 +62,7 @@ export function SidebarMenu({ user, modules, view, go, layout, setDisplay, openS
     const [route, status] = to.split('~');
     const add = route.endsWith('+');
     const key = route.replace(/\+$/, '');
+    if (['accounts','roles','deletion-requests'].includes(key) && (!admin || !allowed(user,{accounts:'users',roles:'roles','deletion-requests':'deletionRequests'}[key]))) return null;
     if (add && !admin && !(user.role === 'teacher' && key === 'results')) return null;
     if (key === 'dashboard' && !admin) return null;
     if (key === 'preview-' + user.role && !admin) return { key: 'dashboard', label };
