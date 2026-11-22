@@ -11,6 +11,8 @@ import { frontendDirectory } from './frontend.js';
 import { catalog, roles } from '../catalog.js';
 import { connect, models, Session, User } from './db.js';
 import { hashPassword, login, logout, publicUser, requireUser } from './auth.js';
+import { administrationRoutes } from './administration.js';
+import { allowed } from '../administration.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -38,6 +40,13 @@ app.get('/api/health', (_req, res) => {
 app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60_000, limit: 20, message: { message: 'Too many attempts. Try again later.' } }), login);
 app.post('/api/auth/logout', logout);
 app.use('/api', requireUser);
+app.use('/api/admin', administrationRoutes({ User, Session, models }));
+app.use('/api/workspace', (req,res,next) => {
+  const resource = req.path.startsWith('/schools') ? 'schools' : 'workspace';
+  const action = req.method === 'GET' ? 'view' : req.method === 'DELETE' ? 'delete' : req.method === 'POST' ? 'create' : 'edit';
+  if (!allowed(req.user,resource,action)) return res.status(403).json({message:'Your role does not allow this action.'});
+  next();
+});
 app.use('/api/workspace', workspaceRoutes(User));
 app.use('/api', async (req, res, next) => {
   const school = req.get('x-school-id');
@@ -50,11 +59,12 @@ app.use('/api', async (req, res, next) => {
 });
 app.get('/api/auth/me', (req, res) => res.json(publicUser(req.user)));
 
-const adminOnly = (req, res, next) => req.user.role === 'admin'
+const adminOnly = (req, res, next) => req.user.role === 'admin' && allowed(req.user,'users',req.method === 'GET' ? 'view' : 'create')
   ? next() : res.status(403).json({ message: 'Administrator access required.' });
 
 app.get('/api/users', adminOnly, async (_req, res) => res.json(await User.find().sort({ name: 1 })));
 app.post('/api/users', adminOnly, async (req, res) => {
+  if (req.user.access) return res.status(403).json({message:'Use the administration account editor for scoped roles.'});
   const { name, email, password, role, studentIds = [] } = req.body ?? {};
   if (typeof name !== 'string' || !name.trim() || name.length > 120 ||
       typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
@@ -73,6 +83,7 @@ app.post('/api/users', adminOnly, async (req, res) => {
 });
 
 export async function readScope(user, key) {
+  if (!allowed(user,key)) return null;
   if (catalog[key].personal) return { ownerId: user._id };
   if (user.role === 'admin') return {};
   if (user.role === 'teacher') {
@@ -127,6 +138,8 @@ app.use('/api/records/:collection', async (req, res, next) => {
   const key = req.params.collection;
   if (!Object.hasOwn(models, key)) return res.status(404).json({ message: 'Module not found.' });
   const scope = await scopedRecords(req, key);
+  const action = req.method === 'GET' ? 'view' : req.method === 'POST' ? 'create' : req.method === 'DELETE' ? 'delete' : 'edit';
+  if (!allowed(req.user,key,action)) return res.status(403).json({message:'Your role does not allow this action.'});
   if (scope === null || (req.method !== 'GET' && req.user.role !== 'admin' &&
       !catalog[key].personal && !(req.user.role === 'teacher' && catalog[key].teacherWrite))) {
     return res.status(403).json({ message: 'You do not have access to this module or action.' });
@@ -238,6 +251,7 @@ if (existsSync(dist)) {
   app.get('/{*path}', (_req, res) => res.sendFile(resolve(dist, 'index.html')));
 }
 app.use((err, _req, res, _next) => {
+  if (err.name === 'VersionError') return res.status(409).json({message:'This request changed. Refresh before reviewing it again.'});
   if (err.code === 11000) return res.status(409).json({ message: 'A matching record already exists.' });
   if (['ValidationError', 'CastError'].includes(err.name)) {
     return res.status(400).json({ message: err.message });
@@ -268,3 +282,4 @@ try {
   console.error('Could not start the API on port ' + port + ' (' + error.code + ').');
   process.exit(1);
 }
+

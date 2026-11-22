@@ -1,0 +1,982 @@
+import React, { useEffect, useRef, useState } from "react";
+import { api } from "./api.js";
+import { Icon } from "./icons.jsx";
+import {
+  Btn,
+  IconBtn,
+  Badge,
+  Person,
+  PageHeading,
+  Stats,
+  Modal,
+  Menu,
+  Search,
+  Empty,
+  Pager,
+  download,
+  shortId,
+  dateText,
+  timeText,
+  labelRole,
+} from "./admin-ui.jsx";
+
+export function UserEditor({
+  row,
+  roles,
+  students,
+  close,
+  saved,
+  invite = false,
+}) {
+  const [value, setValue] = useState({
+    name: "",
+    email: "",
+    password: "",
+    department: "",
+    phone: "",
+    branch: "",
+    status: invite ? "Pending" : "Active",
+    studentIds: [],
+    ...row,
+    roleId: row?.roleId || "system-" + (row?.role || "teacher"),
+  });
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const role = roles.find((r) => r._id === value.roleId),
+    linked = ["student", "parent"].includes(role?.baseRole);
+  function field(name, val) {
+    setValue((v) => ({
+      ...v,
+      [name]: val,
+      ...(name === "roleId" ? { studentIds: [] } : {}),
+    }));
+  }
+  async function photo(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+      file.size > 5 * 1024 * 1024
+    ) {
+      setError("Choose a JPG, PNG or WebP image up to 5 MB.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext("2d"),
+        side = Math.min(image.width, image.height);
+      ctx.drawImage(
+        image,
+        (image.width - side) / 2,
+        (image.height - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        128,
+        128,
+      );
+      const avatar = canvas.toDataURL("image/jpeg", 0.76);
+      if (avatar.length > 20000) throw Error("Choose a less detailed image.");
+      field("avatar", avatar);
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api(
+        "admin/users" + (row ? "/" + row._id : ""),
+        row ? "PUT" : "POST",
+        { ...value, studentIds: linked ? value.studentIds : [] },
+      );
+      saved(
+        row
+          ? "Account updated."
+          : invite
+            ? "Pending account created. Activate it after sharing sign-in details."
+            : "User created.",
+      );
+      close();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title={row ? "Edit User" : invite ? "Invite User" : "Add User"}
+      close={close}
+      wide
+    >
+      <form onSubmit={submit}>
+        <div className="am-photo-editor">
+          <Person row={value} />
+          <label>
+            Profile photo
+            <input
+              aria-label="Upload profile photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={photo}
+            />
+          </label>
+        </div>
+        <div className="am-form-grid">
+          {[
+            ["name", "Full name", "text"],
+            ["email", "Email address", "email"],
+            ["phone", "Phone number", "tel"],
+            ["department", "Department", "text"],
+            ["branch", "Branch", "text"],
+          ].map(([name, label, type]) => (
+            <label key={name}>
+              {label}
+              <input
+                type={type}
+                required={["name", "email"].includes(name)}
+                maxLength={name === "email" ? 254 : 120}
+                value={value[name] || ""}
+                onChange={(e) => field(name, e.target.value)}
+              />
+            </label>
+          ))}
+          <label>
+            Role
+            <select
+              value={value.roleId}
+              onChange={(e) => field("roleId", e.target.value)}
+            >
+              {roles
+                .filter((r) => r.status === "Active")
+                .map((r) => (
+                  <option value={r._id} key={r._id}>
+                    {r.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Account status
+            <select
+              value={value.status}
+              onChange={(e) => field("status", e.target.value)}
+            >
+              {["Active", "Pending", "Inactive", "Blocked"].map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {row ? "New password (optional)" : "Password"}
+            <input
+              type="password"
+              autoComplete="new-password"
+              required={!row}
+              minLength={12}
+              maxLength={128}
+              value={value.password || ""}
+              onChange={(e) => field("password", e.target.value)}
+            />
+            <small>At least 12 characters.</small>
+          </label>
+          {linked && (
+            <label className="am-span">
+              Linked students
+              <select
+                required
+                multiple={role.baseRole === "parent"}
+                value={
+                  role.baseRole === "parent"
+                    ? value.studentIds
+                    : value.studentIds[0] || ""
+                }
+                onChange={(e) =>
+                  field(
+                    "studentIds",
+                    [...e.target.selectedOptions]
+                      .map((o) => o.value)
+                      .filter(Boolean),
+                  )
+                }
+              >
+                {role.baseRole === "student" && (
+                  <option value="">Choose a student</option>
+                )}
+                {students.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name} · {s.admission}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {invite && (
+          <p className="am-hint">
+            This creates a pending account. Share the sign-in details yourself,
+            then activate the account when ready.
+          </p>
+        )}
+        {row && (
+          <p className="am-hint">
+            Saving account changes signs this user out of existing sessions.
+          </p>
+        )}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="am-dialog-actions">
+          <Btn onClick={close}>Cancel</Btn>
+          <button className="primary" disabled={busy}>
+            {busy
+              ? "Saving…"
+              : row
+                ? "Save Changes"
+                : invite
+                  ? "Create Pending Account"
+                  : "Create User"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+export function ImportDialog({ kind = "users", close, saved }) {
+  const [rows, setRows] = useState([]),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [progress, setProgress] = useState(0);
+  async function read(file) {
+    try {
+      const result = JSON.parse(await file.text());
+      if (!Array.isArray(result) || !result.length || result.length > 100)
+        throw Error("Choose a JSON array with 1–100 records.");
+      setRows(result);
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  async function submit() {
+    setBusy(true);
+    let count = 0;
+    try {
+      for (const row of rows) {
+        await api("admin/" + kind, "POST", row);
+        setProgress(++count);
+      }
+      saved(count + " records imported.");
+      close();
+    } catch (e) {
+      saved(count + " records imported before an error.");
+      setRows(rows.slice(count));
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title={"Import " + kind} close={() => !busy && close()}>
+      <p className="am-hint">
+        Choose a JSON file. Each record is validated before it is saved. User
+        accounts require a password of at least 12 characters.
+      </p>
+      <input
+        aria-label="Import JSON file"
+        type="file"
+        accept=".json,application/json"
+        onChange={(e) => e.target.files[0] && read(e.target.files[0])}
+      />
+      <p>
+        {rows.length} records ready {busy && " · " + progress + " saved"}
+      </p>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      <div className="am-dialog-actions">
+        <Btn
+          disabled={busy}
+          onClick={() =>
+            download(
+              "import-template",
+              kind === "users"
+                ? [
+                    {
+                      name: "Example User",
+                      email: "user@example.com",
+                      roleId: "system-teacher",
+                      password: "Choose-a-unique-password",
+                      status: "Active",
+                      department: "Science",
+                      phone: "",
+                      branch: "Main Campus",
+                      studentIds: [],
+                    },
+                  ]
+                : [
+                    {
+                      name: "Custom Teacher",
+                      description: "Academic access",
+                      baseRole: "teacher",
+                      permissions: ["dashboard.view", "students.view"],
+                    },
+                  ],
+              "json",
+            )
+          }
+        >
+          Download Template
+        </Btn>
+        <Btn primary disabled={busy || !rows.length} onClick={submit}>
+          {busy ? "Importing…" : "Import Records"}
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+const columns = [
+  ["profile", "Profile"],
+  ["userId", "User ID"],
+  ["role", "Role"],
+  ["department", "Department"],
+  ["email", "Email"],
+  ["phone", "Phone"],
+  ["branch", "Branch"],
+  ["status", "Status"],
+  ["lastLogin", "Last Login"],
+  ["createdAt", "Created"],
+  ["actions", "Actions"],
+];
+export function UsersPage({ user, go, roleFilter }) {
+  const [users, setUsers] = useState([]),
+    [roles, setRoles] = useState([]),
+    [students, setStudents] = useState([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
+  const [query, setQuery] = useState(""),
+    [quick, setQuick] = useState(roleFilter || "All Users"),
+    [filters, setFilters] = useState({}),
+    [visible, setVisible] = useState(columns.map(([k]) => k)),
+    [density, setDensity] = useState("normal"),
+    [selected, setSelected] = useState([]),
+    [page, setPage] = useState(1),
+    [size, setSize] = useState(10),
+    [sort, setSort] = useState("recent"),
+    [modal, setModal] = useState(null),
+    [busy, setBusy] = useState(false);
+  const root = useRef();
+  async function reload() {
+    setLoading(true);
+    setError("");
+    try {
+      const [u, r, s] = await Promise.all([
+        api("admin/users"),
+        api("admin/roles"),
+        api("records/students"),
+      ]);
+      setUsers(u);
+      setRoles(r);
+      setStudents(s);
+      setSelected([]);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    reload();
+  }, []);
+  useEffect(() => {
+    setPage(1);
+  }, [query, quick, filters, size, sort]);
+  const roleName = (row) =>
+    roles.find((r) => r._id === (row.roleId || "system-" + row.role))?.name ||
+    labelRole(row.role);
+  const matches = (row, choice) =>
+    choice === "All Users" ||
+    (choice === "Inactive" || choice === "Blocked"
+      ? row.status === choice
+      : choice === roleFilter
+        ? row.role === choice
+        : roleName(row).toLowerCase() ===
+            choice.replace(/s$/, "").toLowerCase() ||
+          (choice === "Transport Staff" && row.roleId === "system-transport"));
+  const rows = users
+    .filter(
+      (row) =>
+        matches(row, quick) &&
+        (!filters.status || (row.status || "Active") === filters.status) &&
+        (!filters.department || row.department === filters.department) &&
+        (!filters.branch || row.branch === filters.branch) &&
+        [
+          row.name,
+          row.email,
+          shortId(row),
+          roleName(row),
+          row.phone,
+          row.department,
+        ].some((v) =>
+          String(v || "")
+            .toLowerCase()
+            .includes(query.toLowerCase()),
+        ),
+    )
+    .sort((a, b) =>
+      sort === "name"
+        ? a.name.localeCompare(b.name)
+        : sort === "oldest"
+          ? new Date(a.createdAt) - new Date(b.createdAt)
+          : new Date(b.createdAt) - new Date(a.createdAt),
+    );
+  const pageRows = rows.slice(
+    (Math.min(page, Math.max(1, Math.ceil(rows.length / size))) - 1) * size,
+    page * size,
+  );
+  const exportRows = () =>
+    rows
+      .filter((r) => !selected.length || selected.includes(r._id))
+      .map((r) => ({
+        name: r.name,
+        userId: shortId(r),
+        role: roleName(r),
+        department: r.department,
+        email: r.email,
+        phone: r.phone,
+        branch: r.branch,
+        status: r.status || "Active",
+        lastLogin: timeText(r.lastLogin),
+        created: dateText(r.createdAt),
+      }));
+  function saved(text) {
+    setNotice(text);
+    reload();
+  }
+  async function status(id, status) {
+    setBusy(true);
+    setError("");
+    try {
+      await api("admin/users/" + id + "/status", "PATCH", { status });
+      saved("Account access updated.");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function bulk(statusValue) {
+    if (!selected.length) {
+      setNotice("Select at least one user first.");
+      return;
+    }
+    setBusy(true);
+    let count = 0;
+    try {
+      for (const id of selected) {
+        await api("admin/users/" + id + "/status", "PATCH", {
+          status: statusValue,
+        });
+        count++;
+      }
+      setNotice(count + " accounts updated.");
+    } catch (e) {
+      setError(count + " updated. " + e.message);
+    } finally {
+      setBusy(false);
+      reload();
+    }
+  }
+  return (
+    <div className="am-root" ref={root}>
+      <PageHeading title="User Management">
+        <Btn icon="upload" onClick={() => setModal({ kind: "import" })}>
+          Import
+        </Btn>
+        <Menu icon="download" label="Export">
+          <Btn onClick={() => download("users", exportRows())}>Export CSV</Btn>
+          <Btn onClick={() => download("users", exportRows(), "json")}>
+            Export JSON
+          </Btn>
+        </Menu>
+        <Menu icon="settings" label="Bulk Actions">
+          {["Active", "Inactive", "Blocked"].map((s) => (
+            <Btn key={s} disabled={busy} onClick={() => bulk(s)}>
+              Set {s}
+            </Btn>
+          ))}
+        </Menu>
+        <Btn primary icon="plus" onClick={() => setModal({ kind: "edit" })}>
+          Add User
+        </Btn>
+      </PageHeading>
+      <Stats
+        items={[
+          [
+            "Total Users",
+            users.length,
+            "users",
+            "blue",
+            users.filter(
+              (r) =>
+                new Date(r.createdAt) > new Date(Date.now() - 30 * 86400000),
+            ).length + " added this month",
+          ],
+          [
+            "Active Users",
+            users.filter((r) => (r.status || "Active") === "Active").length,
+            "userCheck",
+            "cyan",
+            "Access enabled",
+          ],
+          [
+            "Pending Invitations",
+            users.filter((r) => r.status === "Pending").length,
+            "mail",
+            "gold",
+            "Awaiting activation",
+          ],
+          [
+            "Inactive Users",
+            users.filter((r) => ["Inactive", "Blocked"].includes(r.status))
+              .length,
+            "userOff",
+            "blue",
+            users.filter((r) => r.status === "Blocked").length +
+              " admin blocked",
+          ],
+        ]}
+      />
+      {notice && (
+        <div className="am-notice" role="status">
+          <Icon name="check" />
+          {notice}
+          <IconBtn
+            icon="close"
+            label="Dismiss message"
+            onClick={() => setNotice("")}
+          />
+        </div>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <section className={"am-card am-directory am-density-" + density}>
+        <div className="am-table-tools">
+          <div className="am-tool-row">
+            <Search value={query} onChange={setQuery} />
+            <Menu icon="bookmark" label="Saved Views">
+              <Btn
+                onClick={() => {
+                  localStorage.setItem(
+                    "am-users-view",
+                    JSON.stringify({ query, quick, filters, visible }),
+                  );
+                  setNotice("Current view saved in this browser.");
+                }}
+              >
+                Save Current View
+              </Btn>
+              <Btn
+                onClick={() => {
+                  try {
+                    const v = JSON.parse(localStorage.getItem("am-users-view"));
+                    if (v) {
+                      setQuery(v.query);
+                      setQuick(v.quick);
+                      setFilters(v.filters);
+                      setVisible(v.visible);
+                    } else setNotice("No view saved yet.");
+                  } catch {
+                    setNotice("Saved view could not be loaded.");
+                  }
+                }}
+              >
+                Load Saved View
+              </Btn>
+              <Btn
+                onClick={() => {
+                  setQuery("");
+                  setQuick("All Users");
+                  setFilters({});
+                  setVisible(columns.map(([k]) => k));
+                }}
+              >
+                Reset View
+              </Btn>
+            </Menu>
+            <Menu icon="sliders" label="Filters">
+              {["status", "department", "branch"].map((key) => (
+                <label key={key}>
+                  {key}
+                  <select
+                    value={filters[key] || ""}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, [key]: e.target.value }))
+                    }
+                  >
+                    <option value="">All {key}</option>
+                    {(key === "status"
+                      ? ["Active", "Pending", "Inactive", "Blocked"]
+                      : [...new Set(users.map((r) => r[key]).filter(Boolean))]
+                    ).map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </Menu>
+            <Menu icon="columns" label="Columns">
+              {columns.map(([key, label]) => (
+                <label className="am-check-label" key={key}>
+                  <input
+                    type="checkbox"
+                    checked={visible.includes(key)}
+                    onChange={(e) =>
+                      setVisible((v) =>
+                        e.target.checked
+                          ? [...v, key]
+                          : v.filter((k) => k !== key),
+                      )
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </Menu>
+            <div className="am-tool-spacer" />
+            <div className="am-density">
+              {["comfortable", "normal", "compact"].map((v, i) => (
+                <IconBtn
+                  key={v}
+                  icon={["menu", "align", "minus"][i]}
+                  label={v + " rows"}
+                  aria-pressed={density === v}
+                  onClick={() => setDensity(v)}
+                />
+              ))}
+            </div>
+            <IconBtn icon="refresh" label="Refresh users" onClick={reload} />
+            <IconBtn
+              icon="fileCsv"
+              label="Export users as CSV"
+              onClick={() => download("users", exportRows())}
+            />
+            <IconBtn
+              icon="print"
+              label="Print users"
+              onClick={() => window.print()}
+            />
+            <IconBtn
+              icon="expand"
+              label="Toggle fullscreen"
+              onClick={() =>
+                document.fullscreenElement
+                  ? document.exitFullscreen()
+                  : root.current?.requestFullscreen?.()
+              }
+            />
+            <Btn icon="send" onClick={() => setModal({ kind: "invite" })}>
+              Invite
+            </Btn>
+          </div>
+          <div className="am-quick">
+            <span>Quick:</span>
+            {[
+              "All Users",
+              "Teachers",
+              "Students",
+              "Parents",
+              "Accountants",
+              "Librarians",
+              "Receptionists",
+              "Transport Staff",
+              "Inactive",
+              "Blocked",
+            ].map((choice, i) => (
+              <Btn
+                key={choice}
+                icon={
+                  [
+                    "family",
+                    "profile",
+                    "cap",
+                    "family",
+                    "calculator",
+                    "library",
+                    "bell",
+                    "bus",
+                    "userOff",
+                    "ban",
+                  ][i]
+                }
+                aria-pressed={quick === choice}
+                onClick={() => setQuick(choice)}
+              >
+                {choice}
+                <small>{users.filter((r) => matches(r, choice)).length}</small>
+              </Btn>
+            ))}
+            <select
+              aria-label="Sort users"
+              className="am-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              <option value="recent">Sort: Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
+        </div>
+        <div className="am-scroll">
+          <table className="am-users-table">
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="Select this page"
+                    checked={
+                      !!pageRows.filter((r) => r._id !== user.id).length &&
+                      pageRows
+                        .filter((r) => r._id !== user.id)
+                        .every((r) => selected.includes(r._id))
+                    }
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? [
+                              ...new Set([
+                                ...selected,
+                                ...pageRows
+                                  .filter((r) => r._id !== user.id)
+                                  .map((r) => r._id),
+                              ]),
+                            ]
+                          : selected.filter(
+                              (id) => !pageRows.some((r) => r._id === id),
+                            ),
+                      )
+                    }
+                  />
+                </th>
+                {columns
+                  .filter(([k]) => visible.includes(k))
+                  .map(([key, label]) => (
+                    <th key={key}>
+                      {label}
+                      {[
+                        "profile",
+                        "role",
+                        "department",
+                        "lastLogin",
+                        "createdAt",
+                      ].includes(key) && <Icon name="sort" />}
+                    </th>
+                  ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((row) => (
+                <tr key={row._id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      disabled={row._id === user.id}
+                      aria-label={"Select " + row.name}
+                      checked={selected.includes(row._id)}
+                      onChange={(e) =>
+                        setSelected((s) =>
+                          e.target.checked
+                            ? [...s, row._id]
+                            : s.filter((id) => id !== row._id),
+                        )
+                      }
+                    />
+                  </td>
+                  {columns
+                    .filter(([k]) => visible.includes(k))
+                    .map(([key]) => (
+                      <td key={key}>
+                        {key === "profile" ? (
+                          <Person
+                            row={row}
+                            subtitle={
+                              "ID " +
+                              shortId(row) +
+                              " · " +
+                              (row.lastLogin ? "Signed in" : "Not signed in")
+                            }
+                          />
+                        ) : key === "userId" ? (
+                          <button
+                            className="am-link"
+                            onClick={() => setModal({ kind: "view", row })}
+                          >
+                            {shortId(row)}
+                          </button>
+                        ) : key === "role" ? (
+                          <span
+                            className={
+                              "am-tag am-" +
+                              {
+                                admin: "blue",
+                                teacher: "green",
+                                student: "purple",
+                                parent: "gold",
+                              }[row.role]
+                            }
+                          >
+                            <Icon name="shield" />
+                            {roleName(row)}
+                          </span>
+                        ) : key === "status" ? (
+                          <Badge>{row.status || "Active"}</Badge>
+                        ) : key === "lastLogin" ? (
+                          timeText(row.lastLogin)
+                        ) : key === "createdAt" ? (
+                          dateText(row.createdAt)
+                        ) : key === "actions" ? (
+                          <div className="am-row-actions">
+                            <IconBtn
+                              icon="eye"
+                              label={"View " + row.name}
+                              onClick={() => setModal({ kind: "view", row })}
+                            />
+                            <IconBtn
+                              icon="edit"
+                              label={"Edit " + row.name}
+                              disabled={row._id === user.id}
+                              onClick={() => setModal({ kind: "edit", row })}
+                            />
+                            <IconBtn
+                              icon="mail"
+                              label={"Message " + row.name}
+                              onClick={() =>
+                                go("email", false, {
+                                  compose: true,
+                                  to: row._id,
+                                })
+                              }
+                            />
+                            <Menu icon="more" label="">
+                              <Btn
+                                disabled={busy || row._id === user.id}
+                                onClick={() =>
+                                  status(
+                                    row._id,
+                                    row.status === "Active"
+                                      ? "Inactive"
+                                      : "Active",
+                                  )
+                                }
+                              >
+                                {row.status === "Active"
+                                  ? "Disable access"
+                                  : "Activate account"}
+                              </Btn>
+                              <Btn
+                                disabled={busy || row._id === user.id}
+                                onClick={() => status(row._id, "Blocked")}
+                              >
+                                Block account
+                              </Btn>
+                              <Btn
+                                disabled={row._id === user.id}
+                                onClick={() =>
+                                  go("deletion-requests", true, {
+                                    userId: row._id,
+                                  })
+                                }
+                              >
+                                Request deletion
+                              </Btn>
+                            </Menu>
+                          </div>
+                        ) : (
+                          row[key] || "—"
+                        )}
+                      </td>
+                    ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {(!rows.length || loading) && <Empty loading={loading} error={error} />}
+        <Pager
+          total={rows.length}
+          page={page}
+          setPage={setPage}
+          size={size}
+          setSize={setSize}
+        />
+      </section>
+      {modal && ["edit", "invite"].includes(modal.kind) && (
+        <UserEditor
+          row={modal.row}
+          roles={roles}
+          students={students}
+          invite={modal.kind === "invite"}
+          close={() => setModal(null)}
+          saved={saved}
+        />
+      )}
+      {modal?.kind === "import" && (
+        <ImportDialog close={() => setModal(null)} saved={saved} />
+      )}
+      {modal?.kind === "view" && (
+        <Modal title="User Profile" close={() => setModal(null)}>
+          <Person row={modal.row} />
+          <dl className="am-profile-details">
+            {[
+              ["User ID", shortId(modal.row)],
+              ["Role", roleName(modal.row)],
+              ["Department", modal.row.department || "—"],
+              ["Phone", modal.row.phone || "—"],
+              ["Branch", modal.row.branch || "—"],
+              ["Status", modal.row.status || "Active"],
+              ["Last sign in", timeText(modal.row.lastLogin)],
+              ["Created", dateText(modal.row.createdAt)],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="am-dialog-actions">
+            <Btn
+              icon="edit"
+              disabled={modal.row._id === user.id}
+              onClick={() => setModal({ kind: "edit", row: modal.row })}
+            >
+              Edit User
+            </Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

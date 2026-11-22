@@ -12,6 +12,13 @@ export const User = mongoose.model('User', new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: roles, required: true },
+  roleId: { type: String, default: null },
+  status: { type: String, enum: ['Active','Inactive','Blocked','Pending'], default: 'Active' },
+  department: { type: String, maxlength:120, default:'' },
+  phone: { type: String, maxlength:120, default:'' },
+  branch: { type: String, maxlength:120, default:'' },
+  lastLogin: Date,
+  avatar: { type:String, default:'', maxlength:20000 },
   studentIds: [mongoose.Schema.Types.ObjectId],
 }, { timestamps: true }));
 

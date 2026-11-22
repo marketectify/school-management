@@ -10,7 +10,7 @@ export const sections = [
     ["Parents","accounts~parent","group"],
     ["Guardians","guardians","guardian"],
     ["Staff",[["Staff List","staff"],["Departments","departments"],["Designation","designations"]],"briefcase"],
-    ["Users",[["Users","accounts"],["Roles & Permissions","roles"],["Delete Account Request"]],"profile"]
+    ["Users",[["Users","accounts"],["Roles & Permissions","roles"],["Delete Account Request","deletion-requests"]],"userMinus"]
   ]],
   ["Academic", [
     ["Classes & Sections",[["Classes","classes"],["Classrooms"],["Sections","classes"],["Class Routine","timetable"],["Class Schedule","timetable"],["Academic Calendar","calendar"]],"classroom"],
