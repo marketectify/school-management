@@ -10,9 +10,10 @@ import { resolve } from 'node:path';
 import { frontendDirectory } from './frontend.js';
 import { catalog, roles } from '../catalog.js';
 import { connect, models, Session, User } from './db.js';
-import { hashPassword, login, logout, publicUser, requireUser } from './auth.js';
+import { hashPassword, login, logout, publicUser, requireUser, loadAccess } from './auth.js';
 import { administrationRoutes } from './administration.js';
 import { allowed } from '../administration.js';
+import { verificationRoutes, validUsername } from './verification.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -39,6 +40,7 @@ app.get('/api/health', (_req, res) => {
 });
 app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60_000, limit: 20, message: { message: 'Too many attempts. Try again later.' } }), login);
 app.post('/api/auth/logout', logout);
+app.use('/api/auth', verificationRoutes({User,Session}));
 app.use('/api', requireUser);
 app.use('/api/admin', administrationRoutes({ User, Session, models }));
 app.use('/api/workspace', (req,res,next) => {
@@ -58,6 +60,13 @@ app.use('/api', async (req, res, next) => {
   next();
 });
 app.get('/api/auth/me', (req, res) => res.json(publicUser(req.user)));
+app.put('/api/auth/username', async (req,res) => {
+  const username=typeof req.body?.username==='string'?req.body.username.trim().toLowerCase():'';
+  if(!validUsername(username))return res.status(400).json({message:'Use a username of 3–30 letters, numbers, dots, underscores or hyphens.'});
+  const updated=await User.findOneAndUpdate({_id:req.user._id},{$set:{username}},{new:true,runValidators:true});
+  if(!await loadAccess(updated))return res.status(401).json({message:'Please sign in again.'});
+  res.json(publicUser(updated));
+});
 
 const adminOnly = (req, res, next) => req.user.role === 'admin' && allowed(req.user,'users',req.method === 'GET' ? 'view' : 'create')
   ? next() : res.status(403).json({ message: 'Administrator access required.' });

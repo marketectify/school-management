@@ -65,6 +65,7 @@ export function administrationRoutes({
     const {
       name,
       email,
+      username = '',
       roleId,
       department = "",
       phone = "",
@@ -74,6 +75,7 @@ export function administrationRoutes({
       password,
       avatar = "",
     } = body || {};
+    if(typeof username!=='string'||(username&&!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username.trim().toLowerCase()))) fail('Use a username of 3–30 letters, numbers, dots, underscores or hyphens.');
     if (
       typeof avatar !== "string" ||
       avatar.length > 20000 ||
@@ -122,6 +124,7 @@ export function administrationRoutes({
     return {
       name: name.trim(),
       email: email.trim().toLowerCase(),
+      username:username?username.trim().toLowerCase():null,
       role: profile.baseRole,
       roleId: [
         "system-admin",
@@ -158,7 +161,7 @@ export function administrationRoutes({
     const update = await fields(req.body, false, req.user);
     await User.updateOne(
       { _id: target._id },
-      { $set: update },
+      { $set: update, $inc:{sessionVersion:1}, ...(update.email!==target.email?{$unset:{googleSub:1,emailVerifiedAt:1}}:{}) },
       { runValidators: true },
     );
     await Session.deleteMany({ userId: target._id });
@@ -176,7 +179,7 @@ export function administrationRoutes({
     await protect(req, target);
     await User.updateOne(
       { _id: target._id },
-      { $set: { status: req.body.status } },
+      { $set: { status: req.body.status }, $inc:{sessionVersion:1} },
     );
     await Session.deleteMany({ userId: target._id });
     await audit(req, "Access " + req.body.status.toLowerCase(), target.name);

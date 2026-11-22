@@ -10,6 +10,10 @@ export async function connect() {
 export const User = mongoose.model('User', new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
+  username: { type:String, trim:true, lowercase:true, minlength:3, maxlength:30 },
+  googleSub: { type:String, maxlength:255 },
+  emailVerifiedAt: Date,
+  sessionVersion: { type:Number, default:0 },
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: roles, required: true },
   roleId: { type: String, default: null },
@@ -21,10 +25,13 @@ export const User = mongoose.model('User', new mongoose.Schema({
   avatar: { type:String, default:'', maxlength:20000 },
   studentIds: [mongoose.Schema.Types.ObjectId],
 }, { timestamps: true }));
+User.schema.index({ username:1 }, { unique:true, partialFilterExpression:{username:{$type:'string'}} });
+User.schema.index({ googleSub:1 }, { unique:true, partialFilterExpression:{googleSub:{$type:'string'}} });
 
 export const Session = mongoose.model('Session', new mongoose.Schema({
   digest: { type: String, required: true, unique: true },
   userId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+  version: { type:Number, default:0 },
   expiresAt: { type: Date, required: true, expires: 0 },
 }));
 
